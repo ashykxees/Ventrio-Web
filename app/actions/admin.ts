@@ -380,3 +380,29 @@ export async function deleteContent(kind: keyof typeof DELETE_TARGETS, id: strin
   revalidateSite();
   redirect(`${target.path}?deleted=1`);
 }
+
+// ---------- Launch DMs ----------
+
+export async function sendLaunchDmsAction(): Promise<AdminFormState> {
+  await assertAdmin();
+
+  const { isSiteLaunched } = await import("@/lib/site");
+
+  if (!isSiteLaunched()) {
+    return {
+      ok: false,
+      message: "Set SITE_LAUNCHED=true on Railway and redeploy before sending launch DMs.",
+    };
+  }
+
+  const { sendLaunchDms } = await import("@/lib/discord-bot");
+  const result = await sendLaunchDms();
+
+  if (result.skipped) {
+    return { ok: false, message: result.skipped };
+  }
+
+  revalidatePath("/admin");
+
+  return { ok: true, message: `Launch DMs: ${result.sent} sent, ${result.failed} failed.` };
+}

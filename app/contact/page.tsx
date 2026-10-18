@@ -1,41 +1,72 @@
-import "../page-text.css";
-import { DISCORD_INVITE } from "@/lib/links";
+import type { Metadata } from "next";
+import { Mail } from "lucide-react";
+import { DiscordIcon } from "@/components/AuthButtons";
+import { Notice, PageHeader } from "@/components/ui";
+import { getContactEmail, getDiscordInviteUrl } from "@/lib/site";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Contact & Support",
-  description: "Get help with Ventrio, your account, an event or a competition.",
 };
 
 export default function ContactPage() {
+  const email = getContactEmail();
+  const invite = getDiscordInviteUrl();
+
   return (
-    <div className="vp-page">
-      <p className="vp-kicker">Support</p>
-      <h1>Contact us</h1>
-      <p className="vp-lead">
-        Questions about Ventrio, your account, an event or a competition? We’re here to help.
-      </p>
-
-      <h2>Email</h2>
-      {/* TODO: replace this paragraph with your support email, e.g.
-          <p><a href="mailto:you@ventrio.xyz">you@ventrio.xyz</a></p> */}
-      <p>Our support email will be published here soon.</p>
-      <p>
-        Parents and guardians can also use this address to ask about or delete a member’s
-        information.
-      </p>
-
-      <h2>Discord</h2>
-      <p>
-        <a className="vp-btn" href={DISCORD_INVITE} target="_blank" rel="noopener noreferrer">
-          Join the Ventrio Discord
-        </a>
-      </p>
-      <p>Message a moderator in the server for quick help or to report a safety concern.</p>
-
-      <p className="vp-note">
-        For your safety, never share passwords, Discord tokens, or personal details like your home
-        address when asking for help.
-      </p>
-    </div>
+    <>
+      <PageHeader
+        eyebrow="Support"
+        title="Contact us"
+        description="Questions about Ventrio, your account, an event or a competition? We're here to help."
+      />
+      <section className="container-page grid max-w-4xl gap-4 py-16 md:grid-cols-2">
+        <div className="card p-8">
+          <Mail
+            className="h-6 w-6 text-gold"
+            strokeWidth={1.5}
+          />
+          <h2 className="mt-5 font-display text-base font-semibold text-cream">Email</h2>
+          {email ? (
+            <a
+              href={`mailto:${email}`}
+              className="mt-3 inline-block text-gold hover:text-gold-soft"
+            >
+              {email}
+            </a>
+          ) : (
+            <p className="mt-3 text-sm text-slate">Our support email will be published here soon.</p>
+          )}
+          <p className="mt-4 text-sm leading-relaxed text-slate">
+            Parents and guardians can also use this address to ask about or delete a member&apos;s
+            information.
+          </p>
+        </div>
+        <div className="card p-8">
+          <DiscordIcon className="h-6 w-6 text-gold" />
+          <h2 className="mt-5 font-display text-base font-semibold text-cream">Discord</h2>
+          {invite ? (
+            <a
+              href={invite}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 inline-block text-gold hover:text-gold-soft"
+            >
+              Join the Ventrio server
+            </a>
+          ) : (
+            <p className="mt-3 text-sm text-slate">The Discord invite will be published here soon.</p>
+          )}
+          <p className="mt-4 text-sm leading-relaxed text-slate">
+            Message a moderator in the server for quick help or to report a safety concern.
+          </p>
+        </div>
+        <div className="md:col-span-2">
+          <Notice>
+            For your safety, never share passwords, Discord tokens, or personal details like your home address
+            when asking for help.
+          </Notice>
+        </div>
+      </section>
+    </>
   );
 }

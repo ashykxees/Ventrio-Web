@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import { Inter, Montserrat } from "next/font/google";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
-import { site } from "@/lib/site";
+import { TeaserFooter } from "@/components/Teaser";
+import { Logo } from "@/components/Logo";
+import { getCurrentMemberSafe } from "@/lib/session";
+import { isSiteLaunched, site } from "@/lib/site";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import "./globals.css";
-import "./teaser/teaser.css";
 
 // Every page reads the session or the database, so never prerender at build time
 // (the Railway volume holding the SQLite file is not mounted during builds).
@@ -36,8 +39,21 @@ export const metadata: Metadata = {
   },
 };
 
+// Pages visitors may open before launch; everything else redirects to the teaser on "/".
+const PRE_LAUNCH_PATHS = ["/", "/login", "/privacy", "/terms", "/contact"];
+
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const teaserMode = (await headers()).get("x-ventrio-teaser-mode") === "true";
+  const launched = isSiteLaunched();
+  const member = launched ? null : await getCurrentMemberSafe();
+  const teaserMode = !launched && !member?.isAdmin;
+
+  if (teaserMode) {
+    const pathname = (await headers()).get("x-pathname") ?? "/";
+
+    if (!PRE_LAUNCH_PATHS.includes(pathname)) {
+      redirect("/");
+    }
+  }
 
   return (
     <html
@@ -45,22 +61,35 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${montserrat.variable} ${inter.variable}`}
     >
       <body className="flex min-h-screen flex-col">
-        {!teaserMode && (
-          <a
-            href="#main"
-            className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[60] focus:rounded-md focus:bg-gold focus:px-4 focus:py-2 focus:text-charcoal"
-          >
-            Skip to content
-          </a>
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[60] focus:rounded-md focus:bg-gold focus:px-4 focus:py-2 focus:text-charcoal"
+        >
+          Skip to content
+        </a>
+        {teaserMode ? (
+          <header className="border-b border-line">
+            <div className="container-page flex h-16 items-center">
+              <Logo />
+            </div>
+          </header>
+        ) : (
+          <>
+            {!launched && (
+              <p className="bg-gold px-4 py-1.5 text-center text-xs font-medium text-charcoal">
+                Admin preview — visitors only see the teaser page until SITE_LAUNCHED=true.
+              </p>
+            )}
+            <SiteHeader />
+          </>
         )}
-        {!teaserMode && <SiteHeader />}
         <main
           id="main"
           className="flex-1"
         >
           {children}
         </main>
-        {!teaserMode && <SiteFooter />}
+        {teaserMode ? <TeaserFooter /> : <SiteFooter />}
       </body>
     </html>
   );
