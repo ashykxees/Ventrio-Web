@@ -1,0 +1,223 @@
+// Ventrio database schema.
+// SQLite has no native enums, so enum-like columns are strings validated in lib/validation.ts.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Auth.js tables ----------
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  profile       Profile?
+  registrations Registration[]
+  submissions   Submission[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ---------- Members ----------
+
+// One profile per member, linked to the stable Discord user ID from OAuth.
+// Discord fields are refreshed on every sign-in and are never user-editable.
+model Profile {
+  id              String  @id @default(cuid())
+  userId          String  @unique
+  discordId       String  @unique
+  discordUsername String
+  discordAvatar   String?
+
+  // Public URL handle (/members/[handle]); never an internal ID.
+  handle      String @unique
+  displayName String
+  bio         String @default("")
+  projectName String @default("")
+  interests   String @default("") // comma-separated
+  skills      String @default("") // comma-separated
+  website     String @default("")
+  socialLinks String @default("") // newline-separated URLs
+
+  // Privacy: profiles are private until the member opts in.
+  isPublic        Boolean @default(false)
+  showAvatar      Boolean @default(true)
+  showBio         Boolean @default(true)
+  showProjectName Boolean @default(true)
+  showInterests   Boolean @default(true)
+  showSkills      Boolean @default(true)
+  showLinks       Boolean @default(false)
+
+  // Pre-launch waitlist: guild auto-join and the one-time launch DM.
+  joinedGuildAt     DateTime?
+  notifyOnLaunch    Boolean   @default(true)
+  launchNotifiedAt  DateTime?
+  launchNotifyError String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ---------- Content ----------
+
+model Event {
+  id               String    @id @default(cuid())
+  title            String
+  description      String
+  type             String // CLASS | COACHING | NETWORKING | FAITH | PITCH | OTHER
+  startsAt         DateTime
+  endsAt           DateTime?
+  timezone         String
+  format           String // ONLINE | IN_PERSON | HYBRID
+  location         String    @default("")
+  capacity         Int?
+  registrationMode String    @default("NONE") // NONE | SITE | EXTERNAL
+  registrationUrl  String    @default("")
+  organizer        String    @default("")
+  status           String    @default("DRAFT") // DRAFT | PUBLISHED | CANCELLED | ARCHIVED
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  registrations Registration[]
+
+  @@index([status, startsAt])
+}
+
+model Lesson {
+  id                 String    @id @default(cuid())
+  title              String
+  description        String
+  details            String    @default("")
+  instructor         String    @default("")
+  type               String // LESSON | CLASS | RESOURCE | COACHING
+  category           String // see LESSON_CATEGORIES
+  startsAt           DateTime?
+  endsAt             DateTime?
+  timezone           String    @default("America/New_York")
+  registrationStatus String    @default("NOT_REQUIRED") // NOT_REQUIRED | OPEN | CLOSED
+  capacity           Int?
+  resourceUrl        String    @default("")
+  status             String    @default("DRAFT") // DRAFT | PUBLISHED | ARCHIVED
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  registrations Registration[]
+
+  @@index([status, category])
+}
+
+model Competition {
+  id               String    @id @default(cuid())
+  title            String
+  summary          String
+  description      String    @default("")
+  eligibility      String    @default("")
+  requirements     String    @default("")
+  judgingCriteria  String    @default("")
+  prizes           String    @default("")
+  prizesVerified   Boolean   @default(false)
+  opensAt          DateTime?
+  deadline         DateTime?
+  timezone         String    @default("America/New_York")
+  phase            String    @default("UPCOMING") // UPCOMING | OPEN | IN_REVIEW | COMPLETED
+  status           String    @default("DRAFT") // DRAFT | PUBLISHED | ARCHIVED
+  submissionFields String    @default("[]") // JSON: SubmissionField[]
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  submissions Submission[]
+}
+
+// Feedback, score and result are visible only to the submitter and admins.
+model Submission {
+  id            String   @id @default(cuid())
+  competitionId String
+  userId        String
+  answers       String // JSON: Record<fieldKey, string>
+  status        String   @default("SUBMITTED") // SUBMITTED | IN_REVIEW | FINALIST | WINNER | NOT_SELECTED | WITHDRAWN
+  score         Int?
+  feedback      String   @default("")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  competition Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([competitionId, userId])
+}
+
+// A registration targets exactly one event or one lesson.
+model Registration {
+  id        String   @id @default(cuid())
+  userId    String
+  eventId   String?
+  lessonId  String?
+  status    String   @default("CONFIRMED") // CONFIRMED | CANCELLED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event  Event?  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  lesson Lesson? @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId])
+  @@unique([userId, lessonId])
+}
+
+model Announcement {
+  id          String    @id @default(cuid())
+  title       String
+  body        String
+  status      String    @default("DRAFT") // DRAFT | PUBLISHED | ARCHIVED
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
