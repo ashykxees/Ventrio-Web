@@ -21,11 +21,12 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  accounts      Account[]
-  sessions      Session[]
-  profile       Profile?
-  registrations Registration[]
-  submissions   Submission[]
+  accounts         Account[]
+  sessions         Session[]
+  profile          Profile?
+  registrations    Registration[]
+  submissions      Submission[]
+  coachApplication CoachApplication?
 }
 
 model Account {
@@ -220,4 +221,30 @@ model Announcement {
   publishedAt DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+}
+
+// Coach applications from /careers. Identity comes from the Discord session, never the form.
+model CoachApplication {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  discordId        String
+  discordUsername  String
+  email            String
+  position         String // MARKETING | STRATEGY | BOTH
+  experience       String
+  expertise        String
+  practicalExample String
+  teachingPlan     String
+  feedbackApproach String
+  availability     String
+  motivation       String
+  links            String   @default("")
+  status           String   @default("SUBMITTED") // SUBMITTED | IN_REVIEW | INTERVIEW | ACCEPTED | NOT_SELECTED
+  adminNotes       String   @default("")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
 }

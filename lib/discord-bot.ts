@@ -178,3 +178,54 @@ export async function sendLaunchDms(): Promise<{ sent: number; failed: number; s
 
   return { sent, failed, skipped: null };
 }
+
+// Optional: post new coach applications to a staff channel (DISCORD_APPLICATIONS_CHANNEL_ID).
+export async function notifyNewCoachApplication(application: {
+  id: string;
+  discordId: string;
+  discordUsername: string;
+  position: string;
+}): Promise<void> {
+  const channelId = process.env.DISCORD_APPLICATIONS_CHANNEL_ID?.trim();
+
+  if (!botToken() || !channelId) {
+    return;
+  }
+
+  const positions: Record<string, string> = {
+    MARKETING: "Marketing Coach",
+    STRATEGY: "Business Strategy Coach",
+    BOTH: "Both positions",
+  };
+  const reviewUrl = `${getSiteUrl()}/admin/applications/${application.id}`;
+
+  const response = await discordFetch(`/channels/${channelId}/messages`, {
+    method: "POST",
+    body: JSON.stringify({
+      embeds: [
+        {
+          title: "New coach application",
+          url: reviewUrl,
+          color: 0xd4af6b,
+          fields: [
+            {
+              name: "Applicant",
+              value: `<@${application.discordId}> (@${application.discordUsername})`,
+              inline: true,
+            },
+            {
+              name: "Position",
+              value: positions[application.position] ?? application.position,
+              inline: true,
+            },
+          ],
+        },
+      ],
+      allowed_mentions: { parse: [] },
+    }),
+  });
+
+  if (!response.ok) {
+    console.error(`[discord] Application notification failed (${response.status}): ${await response.text()}`);
+  }
+}

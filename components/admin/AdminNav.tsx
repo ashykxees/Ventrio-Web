@@ -9,6 +9,7 @@ const ITEMS = [
   { href: "/admin/academy", label: "Academy" },
   { href: "/admin/competitions", label: "Competitions" },
   { href: "/admin/announcements", label: "Announcements" },
+  { href: "/admin/applications", label: "Applications" },
 ];
 
 export function AdminNav() {

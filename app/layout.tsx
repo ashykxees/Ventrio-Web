@@ -40,7 +40,7 @@ export const metadata: Metadata = {
 };
 
 // Pages visitors may open before launch; everything else redirects to the teaser on "/".
-const PRE_LAUNCH_PATHS = ["/", "/login", "/privacy", "/terms", "/contact"];
+const PRE_LAUNCH_PATHS = ["/", "/login", "/privacy", "/terms", "/contact", "/careers"];
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const launched = isSiteLaunched();
