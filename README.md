@@ -15,11 +15,12 @@
 | `/events`, `/events/[id]` | Event listings (filter by type/date) and registration | Public; registration requires sign-in |
 | `/competitions`, `/competitions/[id]` | How competitions work, details, submission form, private feedback | Public; submissions require sign-in |
 | `/community` | Community overview, guidelines, Discord invite | Public |
+| `/careers` | Become a Ventrio Coach: positions, expectations, Discord-gated application | Public; applying requires sign-in (open before launch) |
 | `/login` | Sign in with Discord | Public |
 | `/profile` | Edit member profile with live preview | Signed-in members |
 | `/settings` | Privacy controls, sign out, delete account | Signed-in members |
 | `/members/[handle]` | Public member profile (only if the member opts in) | Public |
-| `/admin/*` | Manage events, lessons, competitions, submissions, announcements | Admins only |
+| `/admin/*` | Manage events, lessons, competitions, submissions, announcements, coach applications | Admins only |
 | `/privacy`, `/terms`, `/contact` | Placeholder policies and support | Public |
 
 No events, lessons, competitions, prizes or testimonials are pre-filled. Every list shows a friendly empty state until an admin publishes real content.
@@ -48,6 +49,8 @@ Other scripts: `npm run build`, `npm start` (runs `prisma migrate deploy` first)
 | `DISCORD_INVITE_URL` | Optional | Discord invite used across the site. Defaults to `https://discord.gg/J5y9A8Asch` |
 | `SITE_LAUNCHED` | Yes | `false` = teaser page only; `true` = full site + one-time launch DMs |
 | `DISCORD_BOT_TOKEN` | Yes, for teaser | Bot token from the same Discord application (auto-join + launch DM) |
+| `CALENDLY_URL` | Optional | Interview booking link for coach applicants. Defaults to `https://calendly.com/dev-jake317/30min` |
+| `DISCORD_APPLICATIONS_CHANNEL_ID` | Optional | Channel where the bot posts new coach applications |
 | `DISCORD_GUILD_ID` | Optional | Discord server ID; looked up from the invite link when blank |
 | `CONTACT_EMAIL` | Optional | Support email shown on `/contact` and in the footer |
 
