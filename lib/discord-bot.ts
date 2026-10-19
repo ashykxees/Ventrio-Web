@@ -179,16 +179,17 @@ export async function sendLaunchDms(): Promise<{ sent: number; failed: number; s
   return { sent, failed, skipped: null };
 }
 
-// Optional: post new coach applications to a staff channel (DISCORD_APPLICATIONS_CHANNEL_ID).
+// Optional: post new coach applications to a staff channel via a Discord webhook
+// (DISCORD_APPLICATIONS_WEBHOOK_URL). No bot permissions are involved.
 export async function notifyNewCoachApplication(application: {
   id: string;
   discordId: string;
   discordUsername: string;
   position: string;
 }): Promise<void> {
-  const channelId = process.env.DISCORD_APPLICATIONS_CHANNEL_ID?.trim();
+  const webhookUrl = process.env.DISCORD_APPLICATIONS_WEBHOOK_URL?.trim();
 
-  if (!botToken() || !channelId) {
+  if (!webhookUrl) {
     return;
   }
 
@@ -199,9 +200,12 @@ export async function notifyNewCoachApplication(application: {
   };
   const reviewUrl = `${getSiteUrl()}/admin/applications/${application.id}`;
 
-  const response = await discordFetch(`/channels/${channelId}/messages`, {
+  const response = await fetch(webhookUrl, {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
+    signal: AbortSignal.timeout(8000),
     body: JSON.stringify({
+      username: "Ventrio Careers",
       embeds: [
         {
           title: "New coach application",
@@ -218,6 +222,7 @@ export async function notifyNewCoachApplication(application: {
               value: positions[application.position] ?? application.position,
               inline: true,
             },
+            { name: "Review", value: reviewUrl },
           ],
         },
       ],
@@ -226,6 +231,6 @@ export async function notifyNewCoachApplication(application: {
   });
 
   if (!response.ok) {
-    console.error(`[discord] Application notification failed (${response.status}): ${await response.text()}`);
+    console.error(`[discord] Application webhook failed (${response.status}): ${await response.text()}`);
   }
 }

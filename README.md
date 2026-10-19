@@ -50,7 +50,7 @@ Other scripts: `npm run build`, `npm start` (runs `prisma migrate deploy` first)
 | `SITE_LAUNCHED` | Yes | `false` = teaser page only; `true` = full site + one-time launch DMs |
 | `DISCORD_BOT_TOKEN` | Yes, for teaser | Bot token from the same Discord application (auto-join + launch DM) |
 | `CALENDLY_URL` | Optional | Interview booking link for coach applicants. Defaults to `https://calendly.com/dev-jake317/30min` |
-| `DISCORD_APPLICATIONS_CHANNEL_ID` | Optional | Channel where the bot posts new coach applications |
+| `DISCORD_APPLICATIONS_WEBHOOK_URL` | Optional | Discord webhook URL that receives new coach applications |
 | `DISCORD_GUILD_ID` | Optional | Discord server ID; looked up from the invite link when blank |
 | `CONTACT_EMAIL` | Optional | Support email shown on `/contact` and in the footer |
 
