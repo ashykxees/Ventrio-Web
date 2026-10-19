@@ -46,7 +46,15 @@ function FieldError({ name, error }: { name: string; error?: string }) {
   );
 }
 
-function Question({ question, error }: { question: ApplicationQuestion; error?: string }) {
+function Question({
+  question,
+  error,
+  value,
+}: {
+  question: ApplicationQuestion;
+  error?: string;
+  value?: string;
+}) {
   const hintId = question.hint ? `${question.name}-hint` : undefined;
 
   return (
@@ -73,6 +81,7 @@ function Question({ question, error }: { question: ApplicationQuestion; error?: 
         required={question.required}
         minLength={question.rows === 3 ? 5 : 30}
         maxLength={3000}
+        defaultValue={value ?? ""}
         className="field-input"
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? `${question.name}-error` : hintId}
@@ -90,6 +99,7 @@ export function CoachApplicationForm({ discordUsername, action }: Props) {
   const [step, setStep] = useState(0);
   const stepRefs = useRef<(HTMLFieldSetElement | null)[]>([]);
   const errors = state?.errors ?? {};
+  const values = state?.values ?? {};
 
   // Jump to the first step that has a server-side error (derived state, updated during render).
   const [seenState, setSeenState] = useState(state);
@@ -190,6 +200,7 @@ export function CoachApplicationForm({ discordUsername, action }: Props) {
             required
             maxLength={200}
             autoComplete="email"
+            defaultValue={values.email ?? ""}
             className="field-input"
             aria-invalid={errors.email ? true : undefined}
             aria-describedby={errors.email ? "email-error" : "email-hint"}
@@ -230,6 +241,7 @@ export function CoachApplicationForm({ discordUsername, action }: Props) {
                   type="radio"
                   name="position"
                   value={position.value}
+                  defaultChecked={values.position === position.value}
                   required
                   className="h-4 w-4 accent-[#d4af6b]"
                 />
@@ -256,6 +268,7 @@ export function CoachApplicationForm({ discordUsername, action }: Props) {
             key={question.name}
             question={question}
             error={errors[question.name]}
+            value={values[question.name]}
           />
         ))}
       </fieldset>
@@ -272,6 +285,7 @@ export function CoachApplicationForm({ discordUsername, action }: Props) {
             key={question.name}
             question={question}
             error={errors[question.name]}
+            value={values[question.name]}
           />
         ))}
 
@@ -288,6 +302,7 @@ export function CoachApplicationForm({ discordUsername, action }: Props) {
             rows={2}
             maxLength={500}
             placeholder="https://"
+            defaultValue={values.links ?? ""}
             className="field-input"
             aria-invalid={errors.links ? true : undefined}
             aria-describedby={errors.links ? "links-error" : undefined}
@@ -305,6 +320,7 @@ export function CoachApplicationForm({ discordUsername, action }: Props) {
                 <input
                   type="checkbox"
                   name={agreement.name}
+                  defaultChecked={values[agreement.name] === "on"}
                   required
                   className="mt-1 h-4 w-4 shrink-0 accent-[#d4af6b]"
                   aria-invalid={errors[agreement.name] ? true : undefined}

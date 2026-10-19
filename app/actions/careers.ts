@@ -12,6 +12,7 @@ export type ApplicationState = {
   ok: boolean;
   message: string;
   errors?: Record<string, string>;
+  values?: Record<string, string>;
 } | null;
 
 const answer = z
@@ -81,7 +82,14 @@ export async function submitCoachApplication(
   }
 
   if (!parsed.success || Object.keys(errors).length > 0) {
-    return { ok: false, message: "Please fix the highlighted fields.", errors };
+    // Echo answers back so a validation error never wipes what the applicant typed.
+    const values = Object.fromEntries(
+      Array.from(formData.entries()).filter(
+        ([key, value]) => !key.startsWith("$") && typeof value === "string",
+      ),
+    ) as Record<string, string>;
+
+    return { ok: false, message: "Please fix the highlighted fields.", errors, values };
   }
 
   // Discord identity always comes from the server session, never from submitted form fields.
