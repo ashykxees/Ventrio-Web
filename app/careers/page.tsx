@@ -14,6 +14,8 @@ export const metadata: Metadata = {
   title: "Become a Ventrio Coach",
   description:
     "Help shape the next generation of entrepreneurs as a Ventrio Marketing Coach or Business Strategy Coach.",
+  // Unlisted: open to anyone with the link, but not linked in navigation or indexed by search engines.
+  robots: { index: false, follow: false },
 };
 
 const POSITIONS = [
