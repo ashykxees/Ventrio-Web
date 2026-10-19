@@ -11,7 +11,6 @@ const COLUMNS = [
       { href: "/events", label: "Events" },
       { href: "/competitions", label: "Competitions" },
       { href: "/community", label: "Community" },
-      { href: "/careers", label: "Careers" },
     ],
   },
   {

@@ -144,12 +144,6 @@ export function TeaserFooter() {
             Terms
           </Link>
           <Link
-            href="/careers"
-            className="hover:text-cream"
-          >
-            Careers
-          </Link>
-          <Link
             href="/contact"
             className="hover:text-cream"
           >
