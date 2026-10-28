@@ -5,22 +5,12 @@ import { getCurrentMember } from "@/lib/session";
 import { fetchGuildMemberRoles } from "@/lib/discord-bot";
 import { getAdminDiscordIds } from "@/lib/site";
 import { hasAnyRole, splitIds } from "@/lib/coach/rules";
+import { getCoachRoleIds, getLeadershipRoleIds } from "@/lib/coach/roles";
 
-// Discord server roles that unlock the coach dashboard. Override with COACH_ROLE_IDS.
-export const DEFAULT_COACH_ROLE_IDS = ["1560107594020814888", "1560110258217558068", "1560110027262525450"];
+export { DEFAULT_COACH_ROLE_IDS, getCoachRoleIds, getLeadershipRoleIds } from "@/lib/coach/roles";
 
 // Roles are re-read from Discord at most this often, so removing a role revokes access within minutes.
 const ROLE_CACHE_MS = 5 * 60 * 1000;
-
-export function getCoachRoleIds(): string[] {
-  const configured = splitIds(process.env.COACH_ROLE_IDS);
-
-  return configured.length > 0 ? configured : DEFAULT_COACH_ROLE_IDS;
-}
-
-export function getLeadershipRoleIds(): string[] {
-  return splitIds(process.env.LEADERSHIP_ROLE_IDS);
-}
 
 export const getCoachContext = cache(async () => {
   const member = await getCurrentMember();

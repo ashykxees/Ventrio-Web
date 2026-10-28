@@ -53,6 +53,7 @@ Other scripts: `npm run build`, `npm start` (runs `prisma migrate deploy` first)
 | `DISCORD_APPLICATIONS_WEBHOOK_URL` | Optional | Discord webhook URL that receives new coach applications |
 | `COACH_ROLE_IDS` | Optional | Discord role IDs that unlock `/coach`. Defaults to `1560107594020814888,1560110258217558068,1560110027262525450` |
 | `LEADERSHIP_ROLE_IDS` | Optional | Discord role IDs that also get the leadership area (`ADMIN_DISCORD_IDS` always do) |
+| `DISCORD_SCHEDULE_CHANNEL_ID` | Optional | Channel for the coaching schedule embed. Defaults to `1560120142627733504` |
 | `DISCORD_GUILD_ID` | Optional | Discord server ID; looked up from the invite link when blank |
 | `CONTACT_EMAIL` | Optional | Support email shown on `/contact` and in the footer |
 
@@ -101,6 +102,9 @@ A private workspace for coaches: weekly sessions, requests, project payroll, les
 - Operational rules (session types, durations, platforms, deadlines, compensation details, rating scale…) are set at `/coach/leadership/settings`. Anything not established by the brief starts as "Not configured".
 - Payroll is record-keeping only: approving work creates a pending record; marking it paid is a separate, confirmed, logged step. Nothing sends money.
 - Materials and attachments are shared as links (e.g. Google Drive); there is no file upload yet. Notifications are in-app only.
+- **Discord bot (gateway):** the server connects the bot to Discord on start (`instrumentation.ts` → `lib/coach/gateway.ts`). Coaches run `/startcall` in their voice channel and `/endcall` afterwards; everyone who joined gets a DM with a 1–5 star rating and a required comment, shown anonymously on the coach's Performance page. The Discord app must not have an "Interactions Endpoint URL" set, or slash commands go there instead of the bot.
+- **Schedule board:** the bot keeps one embed of upcoming coaching calls in `DISCORD_SCHEDULE_CHANNEL_ID` (default `1560120142627733504`), updated whenever sessions change. The bot needs **View Channel**, **Send Messages** and **Embed Links** there.
+- Active coaches get a coach badge on their public profile.
 - Rule tests: `npm test`.
 
 ## Deploy (Railway)

@@ -280,6 +280,7 @@ model CoachProfile {
   payroll     PayrollRecord[]
   tasks       TaskAssignment[]
   reviews     PerformanceReview[]
+  coachCalls  CoachCall[]
 }
 
 model CoachSession {
@@ -309,6 +310,7 @@ model CoachSession {
   coach  CoachProfile   @relation(fields: [coachId], references: [id], onDelete: Cascade)
   report SessionReport?
   events SessionEvent[]
+  calls  CoachCall[]
 
   @@unique([coachId, weekKey])
   @@index([startAt])
@@ -641,4 +643,49 @@ model AuditLog {
   createdAt  DateTime @default(now())
 
   @@index([createdAt])
+}
+
+// Voice calls tracked by the Discord bot (/startcall, /endcall). Attendees get a rating DM at the end.
+model CoachCall {
+  id        String    @id @default(cuid())
+  coachId   String
+  sessionId String?
+  guildId   String
+  channelId String
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+  dmsSent   Int       @default(0)
+  dmsFailed Int       @default(0)
+
+  coach     CoachProfile   @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  session   CoachSession?  @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  attendees CallAttendee[]
+  feedback  CallFeedback[]
+
+  @@index([coachId, endedAt])
+}
+
+model CallAttendee {
+  id        String   @id @default(cuid())
+  callId    String
+  discordId String
+  joinedAt  DateTime @default(now())
+
+  call CoachCall @relation(fields: [callId], references: [id], onDelete: Cascade)
+
+  @@unique([callId, discordId])
+}
+
+// Member feedback is shown to coaches without the member's identity.
+model CallFeedback {
+  id        String   @id @default(cuid())
+  callId    String
+  discordId String
+  rating    Int // 1-5
+  comment   String
+  createdAt DateTime @default(now())
+
+  call CoachCall @relation(fields: [callId], references: [id], onDelete: Cascade)
+
+  @@unique([callId, discordId])
 }

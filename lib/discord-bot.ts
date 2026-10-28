@@ -7,7 +7,7 @@ function botToken(): string | null {
   return process.env.DISCORD_BOT_TOKEN?.trim() || null;
 }
 
-async function discordFetch(path: string, init: RequestInit = {}, attempt = 0): Promise<Response> {
+export async function discordFetch(path: string, init: RequestInit = {}, attempt = 0): Promise<Response> {
   const response = await fetch(`${API}${path}`, {
     ...init,
     headers: {

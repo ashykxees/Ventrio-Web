@@ -14,6 +14,7 @@ import {
   TASK_COACH_TRANSITIONS,
 } from "@/lib/coach/rules";
 import { zonedLocalToUtc } from "@/lib/dates";
+import { refreshScheduleBoard } from "@/lib/coach/schedule-board";
 
 async function coachOnly(): Promise<ActiveCoachContext> {
   const ctx = await getCoachContext();
@@ -130,6 +131,7 @@ export async function saveSession(_prev: ActionState, formData: FormData): Promi
         });
       }
 
+      void refreshScheduleBoard();
       refresh("/coach/sessions", `/coach/sessions/${existing.id}`, "/coach/leadership/sessions");
 
       return moved ? "Session rescheduled." : "Session updated.";
@@ -144,6 +146,7 @@ export async function saveSession(_prev: ActionState, formData: FormData): Promi
     });
 
     await prisma.sessionEvent.create({ data: { sessionId: session.id, actorId: ctx.userId, action: "SCHEDULED" } });
+    void refreshScheduleBoard();
     refresh("/coach/sessions", "/coach/leadership/sessions");
 
     return "Session scheduled.";
@@ -175,6 +178,7 @@ export async function cancelSession(_prev: ActionState, formData: FormData): Pro
       message: reason,
       href: "/coach/leadership/sessions",
     });
+    void refreshScheduleBoard();
     refresh("/coach/sessions", `/coach/sessions/${session.id}`, "/coach/leadership/sessions");
 
     return "Session cancelled.";

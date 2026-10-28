@@ -19,6 +19,7 @@ import {
 } from "@/lib/coach/rules";
 import { fetchGuildMemberRoles } from "@/lib/discord-bot";
 import { zonedLocalToUtc } from "@/lib/dates";
+import { refreshScheduleBoard } from "@/lib/coach/schedule-board";
 
 async function leadershipOnly(): Promise<CoachContext> {
   const ctx = await getCoachContext();
@@ -172,6 +173,7 @@ export async function reviewSession(_prev: ActionState, formData: FormData): Pro
       });
     }
 
+    void refreshScheduleBoard();
     refresh("/coach/leadership/sessions", `/coach/sessions/${session.id}`);
 
     return "Session updated.";
