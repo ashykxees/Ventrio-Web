@@ -234,3 +234,43 @@ export async function notifyNewCoachApplication(application: {
     console.error(`[discord] Application webhook failed (${response.status}): ${await response.text()}`);
   }
 }
+
+// Role IDs the member currently holds in the Ventrio server, read with the bot token.
+// [] = not in the server; null = couldn't check (no token, Discord error), so callers deny access.
+let warnedNoToken = false;
+
+export async function fetchGuildMemberRoles(discordId: string): Promise<string[] | null> {
+  if (!botToken()) {
+    if (!warnedNoToken) {
+      warnedNoToken = true;
+      console.warn("[discord] DISCORD_BOT_TOKEN not set; can't verify coach roles");
+    }
+
+    return null;
+  }
+
+  const guildId = await getGuildId().catch(() => null);
+
+  if (!guildId) {
+    return null;
+  }
+
+  const response = await discordFetch(`/guilds/${guildId}/members/${discordId}`).catch(() => null);
+
+  if (!response) {
+    return null;
+  }
+
+  if (response.status === 404) {
+    return [];
+  }
+
+  if (!response.ok) {
+    console.error(`[discord] Role check failed (${response.status}): ${await response.text()}`);
+    return null;
+  }
+
+  const body = (await response.json()) as { roles?: string[] };
+
+  return body.roles ?? [];
+}

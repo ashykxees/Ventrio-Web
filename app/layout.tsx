@@ -50,7 +50,8 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   if (teaserMode) {
     const pathname = (await headers()).get("x-pathname") ?? "/";
 
-    if (!PRE_LAUNCH_PATHS.includes(pathname)) {
+    // The coach dashboard is open to coaches before launch.
+    if (!PRE_LAUNCH_PATHS.includes(pathname) && !pathname.startsWith("/coach")) {
       redirect("/");
     }
   }
