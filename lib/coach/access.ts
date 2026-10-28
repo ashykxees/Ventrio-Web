@@ -36,6 +36,13 @@ export const getCoachContext = cache(async () => {
   const hasCoachRole = roles ? hasAnyRole(roles, getCoachRoleIds()) : false;
   const isLeadership = member.isAdmin || (roles ? hasAnyRole(roles, getLeadershipRoleIds()) : false);
 
+  if (roles && !cacheFresh && !hasCoachRole && !isLeadership) {
+    console.warn(
+      `[coach] No coach role for @${member.profile.discordUsername} (${member.profile.discordId}). ` +
+        `Roles in server: [${roles.join(", ") || "none"}]. Coach roles: [${getCoachRoleIds().join(", ")}]`,
+    );
+  }
+
   if (roles && !cacheFresh) {
     const data = { discordRoles: roles.join(","), rolesCheckedAt: new Date() };
 
