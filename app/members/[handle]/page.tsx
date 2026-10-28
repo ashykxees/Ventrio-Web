@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { ExternalLink } from "lucide-react";
+import { BadgeCheck, ExternalLink } from "lucide-react";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { Badge } from "@/components/ui";
 import { splitList } from "@/lib/members";
 import { prisma } from "@/lib/prisma";
+import { getCoachRoleIds } from "@/lib/coach/access";
+import { hasAnyRole, splitIds } from "@/lib/coach/rules";
 
 // Only public profiles are returned, and only the fields the member opted to show.
 async function getPublicProfile(handle: string) {
@@ -14,7 +16,15 @@ async function getPublicProfile(handle: string) {
     return null;
   }
 
+  // Coach badge: an active coach profile that still held a coach role at the last check.
+  const coach = await prisma.coachProfile.findUnique({ where: { userId: profile.userId } });
+  const isCoach = Boolean(
+    coach && coach.status === "ACTIVE" && hasAnyRole(splitIds(coach.discordRoles), getCoachRoleIds()),
+  );
+
   return {
+    isCoach,
+    coachRole: isCoach ? coach?.coachRole || "Ventrio Coach" : "",
     displayName: profile.displayName,
     handle: profile.handle,
     avatar: profile.showAvatar ? { discordId: profile.discordId, hash: profile.discordAvatar } : null,
@@ -59,6 +69,12 @@ export default async function MemberPage(props: PageProps<"/members/[handle]">) 
           <div>
             <p className="eyebrow">Ventrio member</p>
             <h1 className="mt-2 font-display text-2xl font-semibold text-cream">{profile.displayName}</h1>
+            {profile.isCoach && (
+              <p className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-gold/50 bg-gold/10 px-3 py-1 font-display text-[0.65rem] font-semibold tracking-[0.18em] text-gold uppercase">
+                <BadgeCheck className="h-3.5 w-3.5" />
+                {profile.coachRole}
+              </p>
+            )}
             <p className="text-sm text-slate">@{profile.handle}</p>
           </div>
         </div>

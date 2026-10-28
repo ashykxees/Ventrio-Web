@@ -1,6 +1,7 @@
 import { acknowledgeReview } from "@/app/actions/coach";
 import { ActionForm } from "@/components/coach/ActionForm";
 import { Hidden } from "@/components/coach/fields";
+import { CallFeedbackPanel } from "@/components/coach/CallFeedback";
 import { Empty, PageTitle, Panel } from "@/components/coach/ui";
 import { requireCoach, userNames } from "@/lib/coach/access";
 import { formatDate } from "@/lib/dates";
@@ -23,6 +24,10 @@ export default async function CoachPerformancePage() {
       <PageTitle
         title="Performance"
         description="Your finalized reviews. Acknowledging a review means you've read it, not that you agree with every point."
+      />
+      <CallFeedbackPanel
+        coachId={ctx.coach.id}
+        timezone={ctx.timezone}
       />
       {reviews.length === 0 ? (
         <Empty>No performance reviews yet.</Empty>

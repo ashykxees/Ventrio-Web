@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { recheckCoachRoles, setCoachStatus, updateCoach } from "@/app/actions/leadership";
 import { ActionForm } from "@/components/coach/ActionForm";
+import { CallFeedbackPanel } from "@/components/coach/CallFeedback";
 import { Field, Hidden, Select, TextArea } from "@/components/coach/fields";
 import { Detail, List, PageTitle, Panel, Row, StatusBadge } from "@/components/coach/ui";
 import { coachName, getCoachRoleIds, requireLeadership } from "@/lib/coach/access";
@@ -140,6 +141,10 @@ export default async function LeadershipCoachPage(props: { params: Promise<{ id:
           </Panel>
         </div>
       </div>
+      <CallFeedbackPanel
+        coachId={coach.id}
+        timezone={tz}
+      />
       <div className="grid gap-6 xl:grid-cols-2">
         <Panel title="Recent sessions">
           <List>
