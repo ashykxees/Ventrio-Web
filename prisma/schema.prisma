@@ -303,6 +303,7 @@ model CoachSession {
   // ISO week ("2026-W42") this session fulfils; null for extra or cancelled sessions.
   weekKey            String?
   leadershipFeedback String    @default("")
+  hiddenFromBoard    Boolean   @default(false) // leadership removed it from the Discord schedule embed
   cancelledAt        DateTime?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
