@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 //    on the server in lib/session.ts (requireMember / requireAdmin) for every page and action.
 // 2. Passes the pathname to the root layout (x-pathname) for the pre-launch teaser gate.
 const SESSION_COOKIES = ["authjs.session-token", "__Secure-authjs.session-token"];
-const PROTECTED = [/^\/profile$/, /^\/settings$/, /^\/admin(\/.*)?$/];
+const PROTECTED = [/^\/profile$/, /^\/settings$/, /^\/admin(\/.*)?$/, /^\/coach(\/.*)?$/];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;

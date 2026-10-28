@@ -51,6 +51,8 @@ Other scripts: `npm run build`, `npm start` (runs `prisma migrate deploy` first)
 | `DISCORD_BOT_TOKEN` | Yes, for teaser | Bot token from the same Discord application (auto-join + launch DM) |
 | `CALENDLY_URL` | Optional | Interview booking link for coach applicants. Defaults to `https://calendly.com/dev-jake317/30min` |
 | `DISCORD_APPLICATIONS_WEBHOOK_URL` | Optional | Discord webhook URL that receives new coach applications |
+| `COACH_ROLE_IDS` | Optional | Discord role IDs that unlock `/coach`. Defaults to `1560107594020814888,1560110258217558068,1560110027262525450` |
+| `LEADERSHIP_ROLE_IDS` | Optional | Discord role IDs that also get the leadership area (`ADMIN_DISCORD_IDS` always do) |
 | `DISCORD_GUILD_ID` | Optional | Discord server ID; looked up from the invite link when blank |
 | `CONTACT_EMAIL` | Optional | Support email shown on `/contact` and in the footer |
 
@@ -88,6 +90,18 @@ Signing in on the teaser requests the `identify` and `guilds.join` scopes, adds 
 4. Sign in, then open `/admin` (an **Admin** link appears in the header).
 
 Admin access is checked on the server for every admin page and every admin action. It comes only from this env var, never from a profile field the user can edit.
+
+## Coach Dashboard (`/coach`)
+
+A private workspace for coaches: weekly sessions, requests, project payroll, lessons & resources, tasks, performance reviews, announcements, policies and in-app notifications. Leadership tools live under `/coach/leadership`.
+
+- **Coach access** comes from Discord roles. The site reads the member's roles in the Ventrio server with `DISCORD_BOT_TOKEN` (the bot must be in the server) and lets in anyone holding one of `COACH_ROLE_IDS`. Roles are re-checked every 5 minutes, so removing the role removes access. Leadership can also deactivate a coach (records are kept).
+- **Leadership access**: everyone in `ADMIN_DISCORD_IDS`, plus optional `LEADERSHIP_ROLE_IDS`.
+- Works before launch (`SITE_LAUNCHED=false`); not linked from public pages and not indexed.
+- Operational rules (session types, durations, platforms, deadlines, compensation details, rating scale…) are set at `/coach/leadership/settings`. Anything not established by the brief starts as "Not configured".
+- Payroll is record-keeping only: approving work creates a pending record; marking it paid is a separate, confirmed, logged step. Nothing sends money.
+- Materials and attachments are shared as links (e.g. Google Drive); there is no file upload yet. Notifications are in-app only.
+- Rule tests: `npm test`.
 
 ## Deploy (Railway)
 

@@ -27,6 +27,7 @@ model User {
   registrations    Registration[]
   submissions      Submission[]
   coachApplication CoachApplication?
+  coachProfile     CoachProfile?
 }
 
 model Account {
@@ -247,4 +248,397 @@ model CoachApplication {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([status, createdAt])
+}
+
+// ---------- Coach Dashboard (/coach) ----------
+// Access comes from Discord server roles (COACH_ROLE_IDS) verified with the bot, never from the client.
+// Actor/reviewer columns hold User IDs; coach-owned records point at CoachProfile.
+
+model CoachProfile {
+  id               String    @id @default(cuid())
+  userId           String    @unique
+  discordId        String    @unique
+  status           String    @default("ACTIVE") // ACTIVE | DEACTIVATED
+  coachRole        String    @default("") // assigned by leadership, e.g. Marketing Coach
+  expertise        String    @default("")
+  bio              String    @default("")
+  responsibilities String    @default("")
+  timezone         String    @default("America/New_York")
+  availability     String    @default("")
+  startDate        DateTime?
+  leadershipNotes  String    @default("")
+  discordRoles     String    @default("") // comma-separated role IDs from the last check
+  rolesCheckedAt   DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions    CoachSession[]
+  requests    CoachRequest[]
+  assignments ProjectAssignment[]
+  submissions ProjectSubmission[]
+  payroll     PayrollRecord[]
+  tasks       TaskAssignment[]
+  reviews     PerformanceReview[]
+}
+
+model CoachSession {
+  id                 String    @id @default(cuid())
+  coachId            String
+  title              String
+  sessionType        String
+  topic              String
+  objectives         String    @default("")
+  audience           String    @default("")
+  startAt            DateTime
+  durationMinutes    Int
+  timezone           String
+  platform           String
+  meetingUrl         String    @default("")
+  prepNotes          String    @default("")
+  resources          String    @default("")
+  notesForLeadership String    @default("")
+  status             String    @default("SCHEDULED") // SCHEDULED | RESCHEDULED | CANCELLED | COMPLETED | NEEDS_ATTENTION
+  // ISO week ("2026-W42") this session fulfils; null for extra or cancelled sessions.
+  weekKey            String?
+  leadershipFeedback String    @default("")
+  cancelledAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  coach  CoachProfile   @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  report SessionReport?
+  events SessionEvent[]
+
+  @@unique([coachId, weekKey])
+  @@index([startAt])
+}
+
+model SessionEvent {
+  id        String   @id @default(cuid())
+  sessionId String
+  actorId   String
+  action    String
+  detail    String   @default("")
+  createdAt DateTime @default(now())
+
+  session CoachSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model SessionReport {
+  id            String   @id @default(cuid())
+  sessionId     String   @unique
+  submittedById String
+  occurred      Boolean
+  attendance    Int?
+  topicsCovered String   @default("")
+  resourcesUsed String   @default("")
+  followUp      String   @default("")
+  notes         String   @default("")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  session CoachSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model CoachRequest {
+  id            String    @id @default(cuid())
+  coachId       String
+  category      String
+  title         String
+  description   String
+  requestedDate DateTime?
+  links         String    @default("")
+  status        String    @default("SUBMITTED") // DRAFT | SUBMITTED | UNDER_REVIEW | MORE_INFO | APPROVED | REJECTED | WITHDRAWN
+  reviewerId    String?
+  feedback      String    @default("") // visible to the coach
+  internalNotes String    @default("") // leadership only
+  reviewedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  coach   CoachProfile     @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  history RequestHistory[]
+
+  @@index([status, createdAt])
+}
+
+model RequestHistory {
+  id             String   @id @default(cuid())
+  requestId      String
+  actorId        String
+  previousStatus String?
+  newStatus      String
+  comment        String   @default("")
+  createdAt      DateTime @default(now())
+
+  request CoachRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  title       String
+  description String   @default("")
+  projectType String   @default("")
+  status      String   @default("OPEN") // OPEN | CLOSED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assignments ProjectAssignment[]
+}
+
+// The agreed fee lives on the assignment; no universal rate is assumed.
+model ProjectAssignment {
+  id          String   @id @default(cuid())
+  projectId   String
+  coachId     String
+  amountCents Int
+  currency    String   @default("USD")
+  terms       String   @default("")
+  assignedAt  DateTime @default(now())
+
+  project     Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  coach       CoachProfile        @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  submissions ProjectSubmission[]
+  payroll     PayrollRecord[]
+
+  @@unique([projectId, coachId])
+}
+
+model ProjectSubmission {
+  id           String    @id @default(cuid())
+  assignmentId String
+  coachId      String
+  description  String
+  completedAt  DateTime
+  links        String    @default("")
+  notes        String    @default("")
+  status       String    @default("SUBMITTED") // SUBMITTED | UNDER_REVIEW | REVISION | APPROVED | REJECTED
+  reviewerId   String?
+  feedback     String    @default("")
+  approvedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  assignment ProjectAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  coach      CoachProfile      @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  payroll    PayrollRecord?
+}
+
+// One record per approved submission (unique submissionId). Approval never marks it paid.
+model PayrollRecord {
+  id           String    @id @default(cuid())
+  coachId      String
+  submissionId String?   @unique
+  assignmentId String?
+  amountCents  Int
+  currency     String    @default("USD")
+  period       String // YYYY-MM
+  status       String    @default("PENDING") // PENDING | PAID | VOID
+  isAdjustment Boolean   @default(false)
+  approvedById String
+  approvedAt   DateTime  @default(now())
+  paidById     String?
+  paidAt       DateTime?
+  adminNotes   String    @default("")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  coach      CoachProfile       @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  submission ProjectSubmission? @relation(fields: [submissionId], references: [id], onDelete: SetNull)
+  assignment ProjectAssignment? @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
+
+  @@index([coachId, period])
+}
+
+model CoachResource {
+  id          String   @id @default(cuid())
+  title       String
+  description String   @default("")
+  category    String
+  authorId    String
+  url         String   @default("")
+  content     String   @default("")
+  status      String   @default("DRAFT") // DRAFT | SUBMITTED | REVISION | PUBLISHED | ARCHIVED
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  reviews ResourceReview[]
+
+  @@index([status, category])
+}
+
+model ResourceReview {
+  id         String   @id @default(cuid())
+  resourceId String
+  reviewerId String
+  status     String
+  feedback   String   @default("")
+  createdAt  DateTime @default(now())
+
+  resource CoachResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+}
+
+model CoachTask {
+  id          String    @id @default(cuid())
+  title       String
+  description String    @default("")
+  createdById String
+  priority    String    @default("NORMAL") // LOW | NORMAL | HIGH | URGENT
+  dueAt       DateTime?
+  timezone    String    @default("America/New_York")
+  links       String    @default("")
+  checklist   String    @default("") // one item per line
+  status      String    @default("OPEN") // OPEN | CANCELLED
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  assignments TaskAssignment[]
+  comments    TaskComment[]
+}
+
+model TaskAssignment {
+  id          String    @id @default(cuid())
+  taskId      String
+  coachId     String
+  status      String    @default("NOT_STARTED") // NOT_STARTED | IN_PROGRESS | SUBMITTED | REVISION | COMPLETED | CANCELLED
+  submission  String    @default("")
+  assignedAt  DateTime  @default(now())
+  completedAt DateTime?
+  updatedAt   DateTime  @updatedAt
+
+  task  CoachTask    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  coach CoachProfile @relation(fields: [coachId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, coachId])
+}
+
+model TaskComment {
+  id        String   @id @default(cuid())
+  taskId    String
+  coachId   String? // thread this comment belongs to (one per assignee)
+  authorId  String
+  comment   String
+  createdAt DateTime @default(now())
+
+  task CoachTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+}
+
+model PerformanceReview {
+  id             String    @id @default(cuid())
+  coachId        String
+  reviewerId     String
+  periodStart    DateTime
+  periodEnd      DateTime
+  content        String    @default("{}") // JSON: Record<category, text>
+  rating         String    @default("")
+  internalNotes  String    @default("")
+  status         String    @default("DRAFT") // DRAFT | FINAL
+  finalizedAt    DateTime?
+  acknowledgedAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  coach CoachProfile @relation(fields: [coachId], references: [id], onDelete: Cascade)
+}
+
+model CoachAnnouncement {
+  id        String    @id @default(cuid())
+  authorId  String
+  title     String
+  body      String
+  category  String    @default("General")
+  audience  String    @default("") // blank = all active coaches, otherwise a coach role
+  important Boolean   @default(false)
+  pinned    Boolean   @default(false)
+  status    String    @default("DRAFT") // DRAFT | PUBLISHED | ARCHIVED
+  publishAt DateTime?
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  reads AnnouncementRead[]
+}
+
+model AnnouncementRead {
+  id             String   @id @default(cuid())
+  announcementId String
+  userId         String
+  readAt         DateTime @default(now())
+
+  announcement CoachAnnouncement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, userId])
+}
+
+model CoachNotification {
+  id        String    @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  message   String    @default("")
+  href      String    @default("")
+  dedupeKey String?   @unique
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, readAt])
+}
+
+model Policy {
+  id             String   @id @default(cuid())
+  title          String
+  category       String
+  requiresAck    Boolean  @default(true)
+  status         String   @default("DRAFT") // DRAFT | PUBLISHED | ARCHIVED
+  currentVersion Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  versions PolicyVersion[]
+}
+
+model PolicyVersion {
+  id          String   @id @default(cuid())
+  policyId    String
+  version     Int
+  content     String
+  createdById String
+  publishedAt DateTime @default(now())
+
+  policy Policy      @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  acks   PolicyAck[]
+
+  @@unique([policyId, version])
+}
+
+model PolicyAck {
+  id              String   @id @default(cuid())
+  policyVersionId String
+  userId          String
+  acknowledgedAt  DateTime @default(now())
+
+  version PolicyVersion @relation(fields: [policyVersionId], references: [id], onDelete: Cascade)
+
+  @@unique([policyVersionId, userId])
+}
+
+model CoachSetting {
+  key         String   @id
+  value       String // JSON
+  updatedById String
+  updatedAt   DateTime @updatedAt
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  action     String
+  entityType String
+  entityId   String
+  metadata   String   @default("{}")
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
 }

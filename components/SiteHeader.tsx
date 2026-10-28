@@ -6,6 +6,7 @@ import { MobileNav } from "@/components/MobileNav";
 import { DiscordIcon, SignOutButton } from "@/components/AuthButtons";
 import { getCurrentMemberSafe } from "@/lib/session";
 import { discordAvatarUrl } from "@/lib/members";
+import { prisma } from "@/lib/prisma";
 
 const NAV_ITEMS = [
   { href: "/about", label: "About" },
@@ -18,6 +19,10 @@ const NAV_ITEMS = [
 export async function SiteHeader() {
   const member = await getCurrentMemberSafe();
   const profile = member?.profile;
+  const coachProfile = member
+    ? await prisma.coachProfile.findUnique({ where: { userId: member.userId }, select: { status: true } }).catch(() => null)
+    : null;
+  const showCoach = Boolean(member?.isAdmin || coachProfile?.status === "ACTIVE");
 
   const accountLinks = member ? (
     <>
@@ -27,6 +32,14 @@ export async function SiteHeader() {
       >
         My profile
       </Link>
+      {showCoach && (
+        <Link
+          href="/coach"
+          className="btn btn-outline"
+        >
+          Coach dashboard
+        </Link>
+      )}
       {member.isAdmin && (
         <Link
           href="/admin"
@@ -56,6 +69,14 @@ export async function SiteHeader() {
         <div className="hidden items-center gap-3 lg:flex">
           {member && profile ? (
             <>
+              {showCoach && (
+                <Link
+                  href="/coach"
+                  className="font-display text-[0.7rem] font-semibold tracking-[0.24em] text-slate uppercase hover:text-gold"
+                >
+                  Coach
+                </Link>
+              )}
               {member.isAdmin && (
                 <Link
                   href="/admin"
