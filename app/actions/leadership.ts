@@ -180,6 +180,57 @@ export async function reviewSession(_prev: ActionState, formData: FormData): Pro
   });
 }
 
+export async function leadershipCancelSession(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  return runAction(async () => {
+    const ctx = await leadershipOnly();
+    const sessionId = id.parse(formData.get("id"));
+    const reason = required(500).parse(formData.get("reason") ?? "");
+    const session = await prisma.coachSession.findUnique({ where: { id: sessionId }, include: { coach: true } });
+
+    if (!session || session.status === "CANCELLED" || session.status === "COMPLETED") {
+      throw new ActionError("This session can't be cancelled.");
+    }
+
+    // Clearing weekKey frees the coach's weekly slot; the session stays in history.
+    await prisma.coachSession.update({
+      where: { id: session.id },
+      data: { status: "CANCELLED", cancelledAt: new Date(), weekKey: null },
+    });
+    await prisma.sessionEvent.create({
+      data: { sessionId: session.id, actorId: ctx.userId, action: "LEADERSHIP_CANCELLED", detail: reason },
+    });
+    await audit(ctx.userId, "SESSION_CANCELLED", "CoachSession", session.id, { reason });
+    await notify(session.coach.userId, {
+      type: "SESSION",
+      title: `Leadership cancelled "${session.title}"`,
+      message: reason,
+      href: `/coach/sessions/${session.id}`,
+    });
+    void refreshScheduleBoard();
+    refresh("/coach/leadership/sessions", `/coach/sessions/${session.id}`, "/coach/sessions");
+
+    return "Session cancelled and removed from the schedule embed.";
+  });
+}
+
+export async function setSessionBoardVisibility(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  return runAction(async () => {
+    const ctx = await leadershipOnly();
+    const sessionId = id.parse(formData.get("id"));
+    const hide = z.enum(["HIDE", "SHOW"]).parse(formData.get("intent")) === "HIDE";
+
+    await prisma.coachSession.update({ where: { id: sessionId }, data: { hiddenFromBoard: hide } });
+    await prisma.sessionEvent.create({
+      data: { sessionId, actorId: ctx.userId, action: hide ? "REMOVED_FROM_BOARD" : "SHOWN_ON_BOARD" },
+    });
+    await audit(ctx.userId, hide ? "SESSION_REMOVED_FROM_BOARD" : "SESSION_SHOWN_ON_BOARD", "CoachSession", sessionId);
+    void refreshScheduleBoard();
+    refresh("/coach/leadership/sessions");
+
+    return hide ? "Removed from the schedule embed." : "Back on the schedule embed.";
+  });
+}
+
 // ---------- Requests ----------
 
 export async function reviewRequest(_prev: ActionState, formData: FormData): Promise<ActionState> {

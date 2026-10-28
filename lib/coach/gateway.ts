@@ -123,12 +123,11 @@ async function endCall(interaction: ChatInputCommandInteraction) {
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
   await prisma.coachCall.update({ where: { id: call.id }, data: { endedAt: new Date() } });
 
-  const coachName = found.member.displayName;
   const embed = new EmbedBuilder()
     .setColor(0xd4af6b)
     .setTitle("How was your coaching call?")
     .setDescription(
-      `Thanks for joining ${call.session ? `**${call.session.title}** ` : ""}with **${coachName}**. Pick a rating from 1 to 5 stars, then leave a short comment. Your coach sees your feedback without your name.`,
+      `Thanks for joining ${call.session ? `**${call.session.title}** ` : ""}with <@${found.coach.discordId}>. Pick a rating from 1 to 5 stars, then leave a short comment. Your coach sees your feedback without your name.`,
     )
     .setFooter({ text: "Ventrio · Build Better Together." });
   const row = new ActionRowBuilder<ButtonBuilder>().addComponents(

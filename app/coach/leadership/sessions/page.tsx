@@ -1,6 +1,6 @@
-import { reviewSession } from "@/app/actions/leadership";
+import { leadershipCancelSession, reviewSession, setSessionBoardVisibility } from "@/app/actions/leadership";
 import { ActionForm } from "@/components/coach/ActionForm";
-import { Hidden, Select, TextArea } from "@/components/coach/fields";
+import { Field, Hidden, Select, TextArea } from "@/components/coach/fields";
 import { Empty, LinkList, PageTitle, Panel, StatusBadge } from "@/components/coach/ui";
 import { coachName, getActiveCoaches, requireLeadership } from "@/lib/coach/access";
 import { SESSION_STATUSES } from "@/lib/coach/constants";
@@ -113,6 +113,7 @@ export default async function LeadershipSessionsPage(props: { searchParams: Prom
                 <p className="font-medium text-cream">
                   {session.title}
                   {session.weekKey && <span className="ml-2 text-xs text-gold">Weekly call</span>}
+                  {session.hiddenFromBoard && <span className="ml-2 text-xs text-slate">Hidden from Discord embed</span>}
                 </p>
                 <p className="mt-1 text-xs text-slate">
                   {coachName(session.coach)} · {session.sessionType} · {formatDateTime(session.startAt, tz)} · {session.durationMinutes} min · booked
@@ -137,6 +138,58 @@ export default async function LeadershipSessionsPage(props: { searchParams: Prom
                 {session.report.attendance !== null && ` · ${session.report.attendance} attended`}
                 {session.report.topicsCovered && ` · ${session.report.topicsCovered}`}
               </p>
+            )}
+            {session.status !== "CANCELLED" && (
+              <div className="mt-3">
+                <ActionForm
+                  action={setSessionBoardVisibility}
+                  className=""
+                  intents={[
+                    session.hiddenFromBoard
+                      ? { value: "SHOW", label: "Show on schedule embed", variant: "outline" }
+                      : {
+                          value: "HIDE",
+                          label: "Remove from schedule embed",
+                          variant: "outline",
+                          confirm: "Remove this session from the Discord schedule embed? It stays on the dashboard.",
+                        },
+                  ]}
+                >
+                  <Hidden
+                    name="id"
+                    value={session.id}
+                  />
+                </ActionForm>
+              </div>
+            )}
+            {!["CANCELLED", "COMPLETED"].includes(session.status) && (
+              <details className="mt-3">
+                <summary className="cursor-pointer text-sm text-red-300">Cancel session</summary>
+                <div className="mt-3">
+                  <ActionForm
+                    action={leadershipCancelSession}
+                    intents={[
+                      {
+                        value: "cancel",
+                        label: "Cancel session",
+                        variant: "danger",
+                        confirm: "Cancel this session? The coach is notified and it's removed from the schedule embed.",
+                      },
+                    ]}
+                  >
+                    <Hidden
+                      name="id"
+                      value={session.id}
+                    />
+                    <Field
+                      label="Reason (shared with the coach)"
+                      name="reason"
+                      required
+                      maxLength={500}
+                    />
+                  </ActionForm>
+                </div>
+              </details>
             )}
             {session.status !== "CANCELLED" && (
               <details className="mt-3">

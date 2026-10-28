@@ -54,6 +54,7 @@ Other scripts: `npm run build`, `npm start` (runs `prisma migrate deploy` first)
 | `COACH_ROLE_IDS` | Optional | Discord role IDs that unlock `/coach`. Defaults to `1560107594020814888,1560110258217558068,1560110027262525450` |
 | `LEADERSHIP_ROLE_IDS` | Optional | Discord role IDs that also get the leadership area (`ADMIN_DISCORD_IDS` always do) |
 | `DISCORD_SCHEDULE_CHANNEL_ID` | Optional | Channel for the coaching schedule embed. Defaults to `1560120142627733504` |
+| `DISCORD_WORKSHOP_CHANNEL_ID` | Optional | Channel linked at the bottom of the schedule embed (e.g. #workshop-announcements) |
 | `DISCORD_GUILD_ID` | Optional | Discord server ID; looked up from the invite link when blank |
 | `CONTACT_EMAIL` | Optional | Support email shown on `/contact` and in the footer |
 
