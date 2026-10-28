@@ -33,7 +33,7 @@ export default async function CoachLayout({ children }: { children: React.ReactN
         <div className="mt-8">
           <Notice title="You don't have access yet">{message}</Notice>
         </div>
-        <p className="mt-6 text-sm text-slate">Signed in as @{ctx.profile.discordUsername}.</p>
+        <p className="mt-6 text-sm text-slate">Signed in as @{ctx.profile.discordUsername} (Discord ID {ctx.profile.discordId}).</p>
       </div>
     );
   }

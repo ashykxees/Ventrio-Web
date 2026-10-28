@@ -261,12 +261,24 @@ export async function fetchGuildMemberRoles(discordId: string): Promise<string[]
     return null;
   }
 
-  if (response.status === 404) {
-    return [];
-  }
-
   if (!response.ok) {
-    console.error(`[discord] Role check failed (${response.status}): ${await response.text()}`);
+    const text = await response.text();
+    let code: number | undefined;
+
+    try {
+      code = (JSON.parse(text) as { code?: number }).code;
+    } catch {
+      code = undefined;
+    }
+
+    // 10007 = Unknown Member: the user isn't in the server. Anything else (e.g. 10004 Unknown Guild
+    // when the bot isn't in the server) means we couldn't check, so access is denied with a log line.
+    if (code === 10007) {
+      console.warn(`[discord] Role check: user ${discordId} is not a member of server ${guildId}`);
+      return [];
+    }
+
+    console.error(`[discord] Role check failed for server ${guildId} (${response.status}): ${text}`);
     return null;
   }
 
