@@ -286,3 +286,85 @@ export async function fetchGuildMemberRoles(discordId: string): Promise<string[]
 
   return body.roles ?? [];
 }
+
+// Coach interview booking link sent with the "Accepted" DM.
+export function getCoachInterviewUrl(): string {
+  return process.env.COACH_INTERVIEW_URL?.trim() || "https://calendly.com/ggriffin15/ventrio-coach-interview";
+}
+
+const APPLICATION_DMS: Record<string, { title: string; description: string }> = {
+  SUBMITTED: {
+    title: "Application received",
+    description:
+      "Thanks for applying to become a Ventrio Coach! We've received your application and will let you know here whenever its status changes.",
+  },
+  IN_REVIEW: {
+    title: "Your application is in review",
+    description: "Ventrio leadership is now reviewing your coach application. We'll message you as soon as there's an update.",
+  },
+  INTERVIEW: {
+    title: "You've been invited to interview",
+    description: "Great news! Your coach application has moved to the interview stage. Check the careers page for next steps.",
+  },
+  ACCEPTED: {
+    title: "Congratulations, you've been accepted!",
+    description: [
+      "We're thrilled to let you know that your application to become a **Ventrio Coach** has been accepted!",
+      "Your experience, ideas and passion for helping young entrepreneurs stood out, and we can't wait to see the impact you'll make on our community.",
+      "**Next step:** book your Coach Interview using the button below. In the interview we'll get to know you better, walk through how coaching works at Ventrio, and answer any questions you have.",
+      "Thank you for choosing to invest in the next generation of builders. Welcome to the team!\n\n**Build Better Together.**",
+    ].join("\n\n"),
+  },
+  NOT_SELECTED: {
+    title: "An update on your application",
+    description:
+      "Thank you for applying to become a Ventrio Coach. After careful review, we won't be moving forward with your application at this time. We truly appreciate your interest and encourage you to stay involved in the Ventrio community.",
+  },
+};
+
+// DMs the applicant whenever their coach application status changes. Returns an error string or null.
+export async function sendApplicationStatusDm(discordId: string, status: string): Promise<string | null> {
+  const content = APPLICATION_DMS[status];
+
+  if (!content || !botToken()) {
+    return content ? "DISCORD_BOT_TOKEN is not set" : null;
+  }
+
+  const channelResponse = await discordFetch("/users/@me/channels", {
+    method: "POST",
+    body: JSON.stringify({ recipient_id: discordId }),
+  });
+
+  if (!channelResponse.ok) {
+    return `open DM failed (${channelResponse.status})`;
+  }
+
+  const channel = (await channelResponse.json()) as { id: string };
+  const link =
+    status === "ACCEPTED"
+      ? { label: "Book your Coach Interview", url: getCoachInterviewUrl() }
+      : { label: "View your application", url: `${getSiteUrl()}/careers` };
+  const response = await discordFetch(`/channels/${channel.id}/messages`, {
+    method: "POST",
+    body: JSON.stringify({
+      embeds: [
+        {
+          title: content.title,
+          description: content.description,
+          color: 0xd4af6b,
+          footer: { text: "Ventrio Careers · Faith × Business × Impact" },
+        },
+      ],
+      components: [{ type: 1, components: [{ type: 2, style: 5, label: link.label, url: link.url }] }],
+    }),
+  });
+
+  if (!response.ok) {
+    const error = `send failed (${response.status}): ${await response.text()}`;
+
+    console.error(`[discord] Application status DM to ${discordId} failed: ${error}`);
+    return error;
+  }
+
+  return null;
+}
