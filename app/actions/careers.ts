@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentMember } from "@/lib/session";
-import { AGREEMENTS, APPLICATION_STATUSES, COACH_POSITIONS } from "@/lib/careers";
+import { AGREEMENTS, APPLICATION_STATUSES, COACH_POSITIONS, REAPPLY_DAYS, reapplyOpensAt } from "@/lib/careers";
 import { valuesOf } from "@/lib/constants";
 import { notifyNewCoachApplication, sendApplicationStatusDm } from "@/lib/discord-bot";
 
@@ -59,10 +59,21 @@ export async function submitCoachApplication(
     return { ok: false, message: "Please continue with Discord before submitting." };
   }
 
-  const existing = await prisma.coachApplication.findUnique({ where: { userId: member.userId } });
+  const existing = await prisma.coachApplication.findFirst({
+    where: { userId: member.userId },
+    orderBy: { createdAt: "desc" },
+  });
 
   if (existing) {
-    return { ok: false, message: "You've already submitted an application." };
+    const opensAt = reapplyOpensAt(existing);
+
+    if (!opensAt) {
+      return { ok: false, message: "You've already submitted an application." };
+    }
+
+    if (opensAt.getTime() > Date.now()) {
+      return { ok: false, message: `You can apply again ${REAPPLY_DAYS} days after your last decision, on ${opensAt.toLocaleDateString("en-US", { dateStyle: "medium" })}.` };
+    }
   }
 
   const errors: Record<string, string> = {};
@@ -143,7 +154,13 @@ export async function reviewCoachApplication(
     return { ok: false, message: "Application not found." };
   }
 
-  const application = await prisma.coachApplication.update({ where: { id }, data: parsed.data });
+  const application = await prisma.coachApplication.update({
+    where: { id },
+    data: {
+      ...parsed.data,
+      ...(previous.status !== parsed.data.status ? { decidedAt: parsed.data.status === "NOT_SELECTED" ? new Date() : null } : {}),
+    },
+  });
   let dmNote = "";
 
   // Every status change DMs the applicant (saving notes alone doesn't).

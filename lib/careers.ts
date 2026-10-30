@@ -95,3 +95,14 @@ export const AGREEMENTS = [
 export function getCalendlyUrl(): string {
   return process.env.CALENDLY_URL?.trim() || "https://calendly.com/dev-jake317/30min";
 }
+
+// Applicants who weren't selected can apply again this many days after the decision.
+export const REAPPLY_DAYS = 3;
+
+export function reapplyOpensAt(application: { status: string; decidedAt: Date | null; updatedAt: Date }): Date | null {
+  if (application.status !== "NOT_SELECTED") {
+    return null;
+  }
+
+  return new Date((application.decidedAt ?? application.updatedAt).getTime() + REAPPLY_DAYS * 86400000);
+}

@@ -21,13 +21,13 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  accounts         Account[]
-  sessions         Session[]
-  profile          Profile?
-  registrations    Registration[]
-  submissions      Submission[]
-  coachApplication CoachApplication?
-  coachProfile     CoachProfile?
+  accounts          Account[]
+  sessions          Session[]
+  profile           Profile?
+  registrations     Registration[]
+  submissions       Submission[]
+  coachApplications CoachApplication[]
+  coachProfile      CoachProfile?
 }
 
 model Account {
@@ -226,8 +226,8 @@ model Announcement {
 
 // Coach applications from /careers. Identity comes from the Discord session, never the form.
 model CoachApplication {
-  id               String   @id @default(cuid())
-  userId           String   @unique
+  id               String    @id @default(cuid())
+  userId           String
   discordId        String
   discordUsername  String
   email            String
@@ -239,15 +239,17 @@ model CoachApplication {
   feedbackApproach String
   availability     String
   motivation       String
-  links            String   @default("")
-  status           String   @default("SUBMITTED") // SUBMITTED | IN_REVIEW | INTERVIEW | ACCEPTED | NOT_SELECTED
-  adminNotes       String   @default("")
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  links            String    @default("")
+  status           String    @default("SUBMITTED") // SUBMITTED | IN_REVIEW | INTERVIEW | ACCEPTED | NOT_SELECTED
+  adminNotes       String    @default("")
+  decidedAt        DateTime? // when it was marked NOT_SELECTED; reapply opens REAPPLY_DAYS later
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([status, createdAt])
+  @@index([userId, createdAt])
 }
 
 // ---------- Coach Dashboard (/coach) ----------
