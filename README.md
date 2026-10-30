@@ -55,6 +55,7 @@ Other scripts: `npm run build`, `npm start` (runs `prisma migrate deploy` first)
 | `LEADERSHIP_ROLE_IDS` | Optional | Discord role IDs that also get the leadership area (`ADMIN_DISCORD_IDS` always do) |
 | `DISCORD_SCHEDULE_CHANNEL_ID` | Optional | Channel for the coaching schedule embed. Defaults to `1560120142627733504` |
 | `DISCORD_WORKSHOP_CHANNEL_ID` | Optional | Channel linked at the bottom of the schedule embed (e.g. #workshop-announcements) |
+| `COACH_INTERVIEW_URL` | Optional | Link in the "Accepted" application DM. Defaults to `https://calendly.com/ggriffin15/ventrio-coach-interview` |
 | `DISCORD_GUILD_ID` | Optional | Discord server ID; looked up from the invite link when blank |
 | `CONTACT_EMAIL` | Optional | Support email shown on `/contact` and in the footer |
 

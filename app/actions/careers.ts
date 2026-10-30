@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentMember } from "@/lib/session";
 import { AGREEMENTS, APPLICATION_STATUSES, COACH_POSITIONS } from "@/lib/careers";
 import { valuesOf } from "@/lib/constants";
-import { notifyNewCoachApplication } from "@/lib/discord-bot";
+import { notifyNewCoachApplication, sendApplicationStatusDm } from "@/lib/discord-bot";
 
 export type ApplicationState = {
   ok: boolean;
@@ -105,6 +105,9 @@ export async function submitCoachApplication(
   await notifyNewCoachApplication(application).catch((error) =>
     console.error("[discord] Coach application notification failed", error),
   );
+  await sendApplicationStatusDm(application.discordId, application.status).catch((error) =>
+    console.error("[discord] Application status DM failed", error),
+  );
 
   revalidatePath("/careers");
   revalidatePath("/admin/applications");
@@ -134,11 +137,25 @@ export async function reviewCoachApplication(
     return { ok: false, message: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
 
-  await prisma.coachApplication.update({ where: { id }, data: parsed.data });
+  const previous = await prisma.coachApplication.findUnique({ where: { id }, select: { status: true } });
+
+  if (!previous) {
+    return { ok: false, message: "Application not found." };
+  }
+
+  const application = await prisma.coachApplication.update({ where: { id }, data: parsed.data });
+  let dmNote = "";
+
+  // Every status change DMs the applicant (saving notes alone doesn't).
+  if (previous.status !== application.status) {
+    const error = await sendApplicationStatusDm(application.discordId, application.status).catch((err: Error) => err.message);
+
+    dmNote = error ? " The applicant couldn't be DM'd (their DMs may be closed)." : " The applicant was DM'd.";
+  }
 
   revalidatePath("/admin/applications");
   revalidatePath(`/admin/applications/${id}`);
   revalidatePath("/careers");
 
-  return { ok: true, message: "Saved." };
+  return { ok: true, message: `Saved.${dmNote}` };
 }
