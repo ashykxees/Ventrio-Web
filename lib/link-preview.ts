@@ -1,5 +1,7 @@
+import { lookup as lookupCallback, type LookupAddress } from "node:dns";
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
+import { Agent, fetch } from "undici";
 
 export type LinkPreview = {
   url: string;
@@ -112,7 +114,7 @@ async function assertPublicHost(url: URL) {
   }
 }
 
-async function readLimited(response: Response): Promise<string> {
+async function readLimited(response: Awaited<ReturnType<typeof fetch>>): Promise<string> {
   const reader = response.body?.getReader();
 
   if (!reader) {
@@ -138,6 +140,32 @@ async function readLimited(response: Response): Promise<string> {
   return new TextDecoder("utf-8", { fatal: false }).decode(Buffer.concat(chunks).subarray(0, MAX_HTML_BYTES));
 }
 
+// Re-checks the addresses the connection actually uses, so a DNS answer that changes after
+// assertPublicHost (DNS rebinding) still can't reach a private address.
+const publicOnlyAgent = new Agent({
+  connect: {
+    lookup(hostname, options, callback) {
+      lookupCallback(hostname, { ...options, all: true }, (error, addresses: LookupAddress[]) => {
+        if (error) {
+          callback(error, "", 0);
+          return;
+        }
+
+        if (addresses.length === 0 || addresses.some(({ address }) => isPrivateAddress(address))) {
+          callback(new PreviewError("That link points to a private address."), "", 0);
+          return;
+        }
+
+        if (options.all) {
+          (callback as unknown as (err: null, list: LookupAddress[]) => void)(null, addresses);
+        } else {
+          callback(null, addresses[0].address, addresses[0].family);
+        }
+      });
+    },
+  },
+});
+
 async function fetchHtml(start: URL): Promise<{ html: string; finalUrl: URL }> {
   let url = start;
 
@@ -146,6 +174,7 @@ async function fetchHtml(start: URL): Promise<{ html: string; finalUrl: URL }> {
 
     const response = await fetch(url, {
       redirect: "manual",
+      dispatcher: publicOnlyAgent,
       signal: AbortSignal.timeout(TIMEOUT_MS),
       headers: {
         "user-agent": "Mozilla/5.0 (compatible; VentrioBot/1.0; +https://ventrio.org)",
