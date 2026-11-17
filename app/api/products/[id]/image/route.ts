@@ -29,7 +29,7 @@ export async function GET(_request: Request, ctx: RouteContext<"/api/products/[i
   return new Response(new Uint8Array(product.image), {
     headers: {
       "content-type": product.imageType,
-      "cache-control": isPublic ? "public, max-age=3600" : "private, max-age=60",
+      "cache-control": "private, no-cache",
       "x-content-type-options": "nosniff",
       "content-security-policy": "default-src 'none'",
     },
