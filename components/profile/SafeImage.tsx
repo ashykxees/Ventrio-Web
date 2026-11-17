@@ -4,9 +4,9 @@ import { useState, type ImgHTMLAttributes, type ReactNode } from "react";
 
 // Third-party images can disappear or block hotlinking; show the fallback instead of a broken icon.
 export function SafeImage({ fallback, ...props }: ImgHTMLAttributes<HTMLImageElement> & { fallback: ReactNode }) {
-  const [failed, setFailed] = useState(false);
+  const [failedSrc, setFailedSrc] = useState<unknown>(null);
 
-  if (failed || !props.src) {
+  if (!props.src || failedSrc === props.src) {
     return fallback;
   }
 
@@ -14,7 +14,7 @@ export function SafeImage({ fallback, ...props }: ImgHTMLAttributes<HTMLImageEle
     // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text -- alt is passed through props
     <img
       {...props}
-      onError={() => setFailed(true)}
+      onError={() => setFailedSrc(props.src)}
     />
   );
 }
