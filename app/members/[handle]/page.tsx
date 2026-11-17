@@ -7,6 +7,8 @@ import { splitList } from "@/lib/members";
 import { prisma } from "@/lib/prisma";
 import { getCoachRoleIds } from "@/lib/coach/access";
 import { hasAnyRole, splitIds } from "@/lib/coach/rules";
+import { ProductCard } from "@/components/profile/ProductCard";
+import { toProductCard } from "@/lib/products";
 
 // Only public profiles are returned, and only the fields the member opted to show.
 async function getPublicProfile(handle: string) {
@@ -22,8 +24,30 @@ async function getPublicProfile(handle: string) {
     coach && coach.status === "ACTIVE" && hasAnyRole(splitIds(coach.discordRoles), getCoachRoleIds()),
   );
 
+  const showCoaching = isCoach && Boolean(coach?.showCoachingOnProfile);
+  const products = profile.showProducts
+    ? (
+        await prisma.product.findMany({
+          where: { userId: profile.userId },
+          orderBy: [{ position: "asc" }, { createdAt: "asc" }],
+        })
+      ).map(toProductCard)
+    : [];
+
   return {
     isCoach,
+    coaching:
+      showCoaching && coach
+        ? {
+            headline: coach.headline,
+            expertise: splitList(coach.expertise),
+            skills: splitList(coach.skills),
+            yearsExperience: coach.yearsExperience,
+            helpWith: coach.helpWith,
+            credentials: coach.credentials,
+          }
+        : null,
+    products,
     coachRole: isCoach ? coach?.coachRole || "Ventrio Coach" : "",
     displayName: profile.displayName,
     handle: profile.handle,
@@ -52,7 +76,7 @@ export default async function MemberPage(props: PageProps<"/members/[handle]">) 
   }
 
   return (
-    <section className="container-page max-w-3xl py-16 sm:py-24">
+    <section className="container-page max-w-4xl py-16 sm:py-24">
       <div className="card p-8 sm:p-10">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
           {profile.avatar ? (
@@ -76,6 +100,7 @@ export default async function MemberPage(props: PageProps<"/members/[handle]">) 
               </p>
             )}
             <p className="text-sm text-slate">@{profile.handle}</p>
+            {profile.coaching?.headline && <p className="mt-2 text-sm text-cream">{profile.coaching.headline}</p>}
           </div>
         </div>
 
@@ -130,6 +155,73 @@ export default async function MemberPage(props: PageProps<"/members/[handle]">) 
           </ul>
         )}
       </div>
+
+      {profile.coaching && (
+        <div className="card mt-6 p-8 sm:p-10">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="font-display text-lg font-semibold text-cream">Business & coaching</h2>
+            {profile.coaching.yearsExperience !== null && (
+              <p className="text-sm text-slate">
+                {profile.coaching.yearsExperience} {profile.coaching.yearsExperience === 1 ? "year" : "years"} of
+                experience
+              </p>
+            )}
+          </div>
+          {profile.coaching.expertise.length > 0 && (
+            <div className="mt-6">
+              <p className="text-xs tracking-wide text-slate uppercase">Professional in</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {profile.coaching.expertise.map((tag) => (
+                  <Badge
+                    key={tag}
+                    tone="gold"
+                  >
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+          {profile.coaching.skills.length > 0 && (
+            <div className="mt-6">
+              <p className="text-xs tracking-wide text-slate uppercase">Coaching skills</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {profile.coaching.skills.map((tag) => (
+                  <Badge key={tag}>{tag}</Badge>
+                ))}
+              </div>
+            </div>
+          )}
+          {profile.coaching.helpWith && (
+            <div className="mt-6">
+              <p className="text-xs tracking-wide text-slate uppercase">Can help you with</p>
+              <p className="mt-2 text-sm leading-relaxed whitespace-pre-line text-slate">{profile.coaching.helpWith}</p>
+            </div>
+          )}
+          {profile.coaching.credentials && (
+            <div className="mt-6">
+              <p className="text-xs tracking-wide text-slate uppercase">Experience</p>
+              <p className="mt-2 text-sm leading-relaxed whitespace-pre-line text-slate">
+                {profile.coaching.credentials}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {profile.products.length > 0 && (
+        <div className="mt-10">
+          <h2 className="font-display text-lg font-semibold text-cream">Apps & Products</h2>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {profile.products.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </section>
   );
 }

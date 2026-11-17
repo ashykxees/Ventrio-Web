@@ -3,21 +3,23 @@ import { SignOutButton } from "@/components/AuthButtons";
 import { DeleteAccountForm, PrivacyForm } from "@/components/SettingsForms";
 import { deleteAccount, updatePrivacy } from "@/app/actions/profile";
 import { requireMember } from "@/lib/session";
+import { SectionTitle } from "@/components/profile/ProfileShell";
 
 export const metadata: Metadata = {
-  title: "Settings",
+  title: "Privacy & account",
 };
 
 export default async function SettingsPage() {
   const { profile } = await requireMember("/settings");
 
   return (
-    <section className="container-page max-w-3xl py-12 sm:py-16">
-      <p className="eyebrow">Account</p>
-      <h1 className="display mt-4 text-2xl text-cream sm:text-3xl">Settings</h1>
-      <span className="gold-rule mt-6" />
+    <section className="max-w-3xl">
+      <SectionTitle
+        eyebrow="Account"
+        title="Privacy & account"
+      />
 
-      <div className="card mt-10 p-6 sm:p-8">
+      <div className="card p-6 sm:p-8">
         <h2 className="font-display text-base font-semibold text-cream">Privacy</h2>
         <p className="mt-2 text-sm text-slate">
           Your profile is private until you choose to make it public. You decide which fields appear.

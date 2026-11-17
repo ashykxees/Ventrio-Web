@@ -17,7 +17,7 @@ export default async function CoachProfilePage() {
     <>
       <PageTitle
         title="Profile & Settings"
-        description="Your role, account status and start date are managed by leadership."
+        description="Your role, account status and start date are managed by leadership. Public coaching details (expertise, skills) are edited in My profile → Business & coaching."
       />
       <div className="grid gap-6 xl:grid-cols-[1fr_20rem]">
         <Panel title="Your coach profile">

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCoachContext, getLeadershipUserIds, type ActiveCoachContext } from "@/lib/coach/access";
-import { ActionError, links, optionalUrl, required, runAction, text, timezone, type ActionState } from "@/lib/coach/action";
+import { ActionError, formValues, links, optionalUrl, required, runAction, text, timezone, type ActionState } from "@/lib/coach/action";
 import { audit, notify } from "@/lib/coach/activity";
 import { getCoachConfig } from "@/lib/coach/config";
 import {
@@ -620,6 +620,49 @@ const profileSchema = z.object({
   availability: text(1000),
   timezone,
 });
+
+const coachingSchema = z.object({
+  headline: text(100),
+  expertise: text(500),
+  skills: text(500),
+  yearsExperience: z
+    .string()
+    .trim()
+    .refine((value) => value === "" || (/^\d{1,2}$/.test(value) && Number(value) <= 60), "Enter a number from 0 to 60.")
+    .transform((value) => (value === "" ? null : Number(value))),
+  credentials: text(1000),
+  helpWith: text(1000),
+});
+
+const tagList = (value: string) =>
+  value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 12)
+    .join(", ");
+
+// Public "Business & coaching" section of the coach's member profile (/profile/coaching).
+export async function updateCoachingProfile(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  return runAction(async () => {
+    const ctx = await coachOnly();
+    const data = coachingSchema.parse(formValues(formData));
+
+    await prisma.coachProfile.update({
+      where: { id: ctx.coach.id },
+      data: {
+        ...data,
+        expertise: tagList(data.expertise),
+        skills: tagList(data.skills),
+        showCoachingOnProfile: formData.get("showCoachingOnProfile") === "on",
+      },
+    });
+    await audit(ctx.userId, "PROFILE_UPDATED", "CoachProfile", ctx.coach.id);
+    refresh("/coach/profile", "/profile/coaching", `/members/${ctx.profile.handle}`);
+
+    return "Coaching profile saved.";
+  });
+}
 
 export async function updateCoachProfile(_prev: ActionState, formData: FormData): Promise<ActionState> {
   return runAction(async () => {
