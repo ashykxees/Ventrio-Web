@@ -17,7 +17,9 @@
 | `/community` | Community overview, guidelines, Discord invite | Public |
 | `/careers` | Become a Ventrio Coach: positions, expectations, Discord-gated application | Public; applying requires sign-in (open before launch) |
 | `/login` | Sign in with Discord | Public |
-| `/profile` | Edit member profile with live preview | Signed-in members |
+| `/profile` | Profile & socials: name, handle, bio, visibility, social links | Signed-in members |
+| `/profile/coaching` | Business & coaching: expertise, skills, experience shown on the public profile | Active coaches only (Discord role checked server-side) |
+| `/profile/products` | Apps & Products: paste a link, the site builds a card from the page's title, description, logo and thumbnail | Signed-in members |
 | `/settings` | Privacy controls, sign out, delete account | Signed-in members |
 | `/members/[handle]` | Public member profile (only if the member opts in) | Public |
 | `/admin/*` | Manage events, lessons, competitions, submissions, announcements, coach applications | Admins only |
@@ -108,6 +110,13 @@ A private workspace for coaches: weekly sessions, requests, project payroll, les
 - **Schedule board:** the bot keeps one embed of upcoming coaching calls in `DISCORD_SCHEDULE_CHANNEL_ID` (default `1560120142627733504`), updated whenever sessions change. The bot needs **View Channel**, **Send Messages** and **Embed Links** there.
 - Active coaches get a coach badge on their public profile.
 - Rule tests: `npm test`.
+
+## Apps & Products
+
+- Link previews are fetched on the server only. Links to localhost, private networks or cloud metadata addresses are rejected, redirects are re-checked, and pages are read with a 6 s timeout and 512 KB cap.
+- If a site can't be read, the product is still saved with a basic card (hostname as the title). Members can press **Refresh** later.
+- Digital products require an uploaded image (PNG, JPG, WebP or GIF, max 2 MB, checked by file signature). Images are stored in SQLite on the Railway volume and served from `/api/products/[id]/image` only when the owner's profile is public and shows products (or to the owner).
+- `next.config.ts` raises the Server Action body limit to 3 MB for these uploads.
 
 ## Deploy (Railway)
 

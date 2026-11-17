@@ -15,6 +15,7 @@ const FIELD_TOGGLES = [
   { name: "showInterests", label: "Interests" },
   { name: "showSkills", label: "Skills" },
   { name: "showLinks", label: "Website & social links" },
+  { name: "showProducts", label: "Apps & products" },
 ] as const;
 
 function Toggle({

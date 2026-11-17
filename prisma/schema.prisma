@@ -28,6 +28,7 @@ model User {
   submissions       Submission[]
   coachApplications CoachApplication[]
   coachProfile      CoachProfile?
+  products          Product[]
 }
 
 model Account {
@@ -95,6 +96,7 @@ model Profile {
   showInterests   Boolean @default(true)
   showSkills      Boolean @default(true)
   showLinks       Boolean @default(false)
+  showProducts    Boolean @default(true)
 
   // Pre-launch waitlist: guild auto-join and the one-time launch DM.
   joinedGuildAt     DateTime?
@@ -106,6 +108,29 @@ model Profile {
   updatedAt DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Apps & Products shown on a member's public profile. Metadata is fetched server-side from `url`.
+model Product {
+  id           String    @id @default(cuid())
+  userId       String
+  kind         String    @default("WEBSITE") // WEBSITE | APP | DIGITAL
+  url          String
+  title        String    @default("")
+  description  String    @default("")
+  siteName     String    @default("")
+  logoUrl      String    @default("")
+  thumbnailUrl String    @default("")
+  image        Bytes? // uploaded product image (digital products)
+  imageType    String    @default("")
+  position     Int       @default(0)
+  fetchedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, position])
 }
 
 // ---------- Content ----------
@@ -271,8 +296,16 @@ model CoachProfile {
   leadershipNotes  String    @default("")
   discordRoles     String    @default("") // comma-separated role IDs from the last check
   rolesCheckedAt   DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+
+  // Public "Business & coaching" details, edited by the coach at /profile/coaching.
+  headline              String   @default("")
+  skills                String   @default("") // comma-separated
+  yearsExperience       Int?
+  credentials           String   @default("")
+  helpWith              String   @default("")
+  showCoachingOnProfile Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
   user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   sessions    CoachSession[]

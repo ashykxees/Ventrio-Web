@@ -35,6 +35,8 @@ const listField = (label: string) =>
         .join(", "),
     );
 
+const MAX_LINKS = 6;
+
 const profileSchema = z.object({
   displayName: z
     .string()
@@ -52,10 +54,12 @@ const profileSchema = z.object({
   projectName: z.string().trim().max(80, "Keep the project name under 80 characters."),
   interests: listField("interests"),
   skills: listField("skills"),
-  website: httpsUrl,
-  socialOne: httpsUrl,
-  socialTwo: httpsUrl,
-  socialThree: httpsUrl,
+  links: z
+    .string()
+    .max(2000)
+    .transform((value) => value.split("\n").map((link) => link.trim()).filter(Boolean))
+    .pipe(z.array(httpsUrl).max(MAX_LINKS, `Add up to ${MAX_LINKS} links.`)),
+  visibility: z.enum(["public", "private"]),
 });
 
 export async function updateProfile(_prev: ProfileState, formData: FormData): Promise<ProfileState> {
@@ -78,7 +82,7 @@ export async function updateProfile(_prev: ProfileState, formData: FormData): Pr
     return { ok: false, message: "Please fix the highlighted fields.", errors };
   }
 
-  const { socialOne, socialTwo, socialThree, ...data } = parsed.data;
+  const { links, visibility, ...data } = parsed.data;
   const taken = await prisma.profile.findFirst({
     where: { handle: data.handle, NOT: { userId: member.userId } },
   });
@@ -95,7 +99,9 @@ export async function updateProfile(_prev: ProfileState, formData: FormData): Pr
     where: { userId: member.userId },
     data: {
       ...data,
-      socialLinks: [socialOne, socialTwo, socialThree].filter(Boolean).join("\n"),
+      isPublic: visibility === "public",
+      website: "",
+      socialLinks: [...new Set(links)].join("\n"),
     },
   });
 
@@ -112,6 +118,7 @@ const PRIVACY_FIELDS = [
   "showInterests",
   "showSkills",
   "showLinks",
+  "showProducts",
 ] as const;
 
 export async function updatePrivacy(_prev: ProfileState, formData: FormData): Promise<ProfileState> {
