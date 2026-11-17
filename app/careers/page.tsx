@@ -4,7 +4,7 @@ import { SignInWithDiscord } from "@/components/AuthButtons";
 import { CoachApplicationForm } from "@/components/CoachApplicationForm";
 import { Badge, SectionHeading } from "@/components/ui";
 import { submitCoachApplication } from "@/app/actions/careers";
-import { APPLICATION_STATUSES, APPLICATION_TONE, getCalendlyUrl } from "@/lib/careers";
+import { APPLICATION_STATUSES, APPLICATION_TONE, getCalendlyUrl, reapplyOpensAt } from "@/lib/careers";
 import { labelFor } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import { getCurrentMemberSafe } from "@/lib/session";
@@ -98,8 +98,11 @@ function BulletList({ items }: { items: string[] }) {
 export default async function CareersPage() {
   const member = await getCurrentMemberSafe();
   const application = member
-    ? await prisma.coachApplication.findUnique({ where: { userId: member.userId } })
+    ? await prisma.coachApplication.findFirst({ where: { userId: member.userId }, orderBy: { createdAt: "desc" } })
     : null;
+  const opensAt = application ? reapplyOpensAt(application) : null;
+  // A not-selected applicant gets the form again once the waiting period is over.
+  const canReapply = Boolean(opensAt && opensAt <= new Date());
 
   return (
     <>
@@ -226,7 +229,7 @@ export default async function CareersPage() {
                   </p>
                 )}
               </div>
-            ) : application ? (
+            ) : application && !canReapply ? (
               <div
                 className="card space-y-5 p-8"
                 role="status"
@@ -240,6 +243,11 @@ export default async function CareersPage() {
                   </Badge>
                 </div>
                 <p className="text-sm leading-relaxed text-slate">{STATUS_COPY[application.status]}</p>
+                {opensAt && (
+                  <p className="text-sm leading-relaxed text-cream">
+                    You can apply again on {opensAt.toLocaleDateString("en-US", { dateStyle: "medium" })}.
+                  </p>
+                )}
                 {application.status === "INTERVIEW" && (
                   <a
                     href={getCalendlyUrl()}
