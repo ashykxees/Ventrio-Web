@@ -52,3 +52,13 @@ test("parsePreview falls back to page content when there are no meta tags", () =
   assert.equal(result.thumbnailUrl, "https://holysmokes.cc/assets/hero1.jpg");
   assert.deepEqual(result.logoCandidates, ["https://holysmokes.cc/apple-touch-icon.png", "https://holysmokes.cc/favicon.ico"]);
 });
+
+test("parsePreview reads the body when </head> is omitted", () => {
+  const result = parsePreview(
+    `<title>Shop</title><p>Hand-made candles poured in small batches every week.</p><img src="/hero.jpg">`,
+    new URL("https://candles.example.com/"),
+  );
+
+  assert.equal(result.description, "Hand-made candles poured in small batches every week.");
+  assert.equal(result.thumbnailUrl, "https://candles.example.com/hero.jpg");
+});

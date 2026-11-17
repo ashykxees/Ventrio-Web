@@ -263,7 +263,8 @@ function imageUrl(value: string | undefined, base: URL): string {
 export type ParsedPreview = Omit<LinkPreview, "url"> & { thumbnailCandidates: string[]; logoCandidates: string[] };
 
 export function parsePreview(html: string, pageUrl: URL): ParsedPreview {
-  const head = html.slice(0, html.search(/<\/head>/i) > 0 ? html.search(/<\/head>/i) : html.length);
+  const headEnd = html.search(/<\/head>/i);
+  const head = headEnd > 0 ? html.slice(0, headEnd) : html;
   const meta: Record<string, string> = {};
 
   for (const [tag] of head.matchAll(/<meta\s[^>]*>/gi)) {
@@ -294,7 +295,7 @@ export function parsePreview(html: string, pageUrl: URL): ParsedPreview {
 
   const title = head.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1];
   const host = pageUrl.hostname.replace(/^www\./, "");
-  const body = html.slice(head.length).replace(/<!--[\s\S]*?-->/g, "");
+  const body = (headEnd > 0 ? html.slice(headEnd) : html).replace(/<!--[\s\S]*?-->/g, "");
 
   const thumbnailCandidates = unique(
     [
@@ -378,19 +379,32 @@ function bodyDescription(body: string): string {
 async function firstWorkingImage(candidates: string[]): Promise<string> {
   for (const candidate of candidates) {
     try {
-      const url = new URL(candidate);
-      await assertPublicHost(url);
+      let url = new URL(candidate);
 
-      const response = await fetch(url, {
-        dispatcher: publicOnlyAgent,
-        signal: AbortSignal.timeout(IMAGE_TIMEOUT_MS),
-        headers: { "user-agent": USER_AGENT, accept: "image/*" },
-      });
-      const type = response.headers.get("content-type") ?? "";
-      await response.body?.cancel().catch(() => {});
+      for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
+        // Redirects are followed by hand so every hop (including IP literals, which skip DNS) is checked.
+        await assertPublicHost(url);
 
-      if (response.ok && type.startsWith("image/")) {
-        return candidate;
+        const response = await fetch(url, {
+          redirect: "manual",
+          dispatcher: publicOnlyAgent,
+          signal: AbortSignal.timeout(IMAGE_TIMEOUT_MS),
+          headers: { "user-agent": USER_AGENT, accept: "image/*" },
+        });
+        const type = response.headers.get("content-type") ?? "";
+        const location = response.headers.get("location");
+        await response.body?.cancel().catch(() => {});
+
+        if (response.status >= 300 && response.status < 400 && location) {
+          url = new URL(location, url);
+          continue;
+        }
+
+        if (response.ok && type.startsWith("image/")) {
+          return candidate;
+        }
+
+        break;
       }
     } catch {
       // Try the next candidate.
