@@ -11,8 +11,9 @@ export const metadata: Metadata = {
   title: "Apps & Products",
 };
 
-export default async function ProductsPage() {
+export default async function ProductsPage({ searchParams }: { searchParams: Promise<{ removed?: string }> }) {
   const { userId, profile } = await requireMember("/profile/products");
+  const { removed } = await searchParams;
   const rows = await prisma.product.findMany({ where: { userId }, orderBy: [{ position: "asc" }, { createdAt: "asc" }] });
   const products = rows.map(toProductCard);
   const visible = profile.isPublic && profile.showProducts;
@@ -27,10 +28,20 @@ export default async function ProductsPage() {
 
       <div className="card p-6">
         <AddProductForm
+          notice={removed}
           action={addProduct}
           disabled={products.length >= PRODUCT_LIMIT}
         />
       </div>
+
+      {removed && (
+        <p
+          role="status"
+          className="mt-4 text-sm text-emerald-300"
+        >
+          Removed from your profile.
+        </p>
+      )}
 
       <div className="mt-8 flex items-center justify-between">
         <p className="font-display text-[0.65rem] font-semibold tracking-[0.2em] text-slate uppercase">

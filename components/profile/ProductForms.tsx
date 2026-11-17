@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import type { FormEvent } from "react";
 import { ImagePlus, Link2 } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 import type { ActionState } from "@/lib/coach/action";
 import { PRODUCT_IMAGE_MAX_BYTES } from "@/lib/products";
 
@@ -48,12 +49,18 @@ function useSubmit(action: Action, onSuccess?: () => void) {
   return { state, isPending, onSubmit };
 }
 
-export function AddProductForm({ action, disabled }: { action: Action; disabled?: boolean }) {
+export function AddProductForm({ action, disabled, notice }: { action: Action; disabled?: boolean; notice?: string }) {
   const [kind, setKind] = useState("WEBSITE");
+  // Hide this form's last result once something newer (a removal) is announced on the page.
+  const [stateNotice, setStateNotice] = useState(notice);
   const [preview, setPreview] = useState("");
   const [fileError, setFileError] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
+  const router = useRouter();
+  const pathname = usePathname();
   const { state, isPending, onSubmit } = useSubmit(action, () => {
+    setStateNotice(undefined);
+    router.replace(pathname, { scroll: false });
     formRef.current?.reset();
     setKind("WEBSITE");
     setPreview("");
@@ -64,7 +71,10 @@ export function AddProductForm({ action, disabled }: { action: Action; disabled?
   return (
     <form
       ref={formRef}
-      onSubmit={onSubmit}
+      onSubmit={(event) => {
+        setStateNotice(notice);
+        onSubmit(event);
+      }}
       className="space-y-4"
     >
       <div
@@ -164,7 +174,7 @@ export function AddProductForm({ action, disabled }: { action: Action; disabled?
       <p className="text-xs text-slate">
         We pull the title, description, logo and thumbnail from the page automatically.
       </p>
-      <Status state={state} />
+      {stateNotice === notice && <Status state={state} />}
     </form>
   );
 }
@@ -183,7 +193,10 @@ export function ProductActions({
   imageAction: Action;
 }) {
   const refresh = useSubmit(refreshAction);
-  const remove = useSubmit(removeAction);
+  const router = useRouter();
+  const pathname = usePathname();
+  // The card unmounts once it's deleted, so the page shows the confirmation instead.
+  const remove = useSubmit(removeAction, () => router.replace(`${pathname}?removed=${id}`, { scroll: false }));
   const image = useSubmit(imageAction);
   const imageForm = useRef<HTMLFormElement>(null);
   const [lastAction, setLastAction] = useState<"refresh" | "remove" | "image" | null>(null);
