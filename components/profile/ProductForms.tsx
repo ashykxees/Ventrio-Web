@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
+import type { FormEvent } from "react";
 import { ImagePlus, Link2 } from "lucide-react";
 import type { ActionState } from "@/lib/coach/action";
 import { PRODUCT_IMAGE_MAX_BYTES } from "@/lib/products";
@@ -83,7 +84,11 @@ export function AddProductForm({ action, disabled }: { action: Action; disabled?
               name="kind"
               value={option.value}
               checked={kind === option.value}
-              onChange={() => setKind(option.value)}
+              onChange={() => {
+                setKind(option.value);
+                setFileError("");
+                setPreview("");
+              }}
               className="sr-only"
             />
             {option.label}
@@ -181,12 +186,17 @@ export function ProductActions({
   const remove = useSubmit(removeAction);
   const image = useSubmit(imageAction);
   const imageForm = useRef<HTMLFormElement>(null);
-  const state = remove.state ?? image.state ?? refresh.state;
+  const [lastAction, setLastAction] = useState<"refresh" | "remove" | "image" | null>(null);
+  const state = lastAction ? { refresh, remove, image }[lastAction].state : null;
+  const track = (name: "refresh" | "remove" | "image", handler: (event: FormEvent<HTMLFormElement>) => void) => (event: FormEvent<HTMLFormElement>) => {
+    setLastAction(name);
+    handler(event);
+  };
 
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-1">
-        <form onSubmit={refresh.onSubmit}>
+        <form onSubmit={track("refresh", refresh.onSubmit)}>
           <input
             type="hidden"
             name="id"
@@ -203,7 +213,7 @@ export function ProductActions({
         {isDigital && (
           <form
             ref={imageForm}
-            onSubmit={image.onSubmit}
+            onSubmit={track("image", image.onSubmit)}
           >
             <input
               type="hidden"
@@ -228,6 +238,7 @@ export function ProductActions({
               event.preventDefault();
               return;
             }
+            setLastAction("remove");
             remove.onSubmit(event);
           }}
           className="ml-auto"
