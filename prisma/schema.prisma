@@ -303,7 +303,7 @@ model CoachProfile {
   yearsExperience       Int?
   credentials           String   @default("")
   helpWith              String   @default("")
-  showCoachingOnProfile Boolean  @default(true)
+  showCoachingOnProfile Boolean  @default(false)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
