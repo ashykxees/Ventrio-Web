@@ -1,5 +1,7 @@
+import { lookup as lookupCallback, type LookupAddress } from "node:dns";
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
+import { Agent, fetch } from "undici";
 
 export type LinkPreview = {
   url: string;
@@ -11,6 +13,9 @@ export type LinkPreview = {
 };
 
 const MAX_HTML_BYTES = 512 * 1024;
+const MAX_IMAGE_CANDIDATES = 5;
+const IMAGE_TIMEOUT_MS = 3000;
+const USER_AGENT = "Mozilla/5.0 (compatible; VentrioBot/1.0; +https://ventrio.org)";
 const MAX_REDIRECTS = 4;
 const TIMEOUT_MS = 6000;
 
@@ -112,7 +117,7 @@ async function assertPublicHost(url: URL) {
   }
 }
 
-async function readLimited(response: Response): Promise<string> {
+async function readLimited(response: Awaited<ReturnType<typeof fetch>>): Promise<string> {
   const reader = response.body?.getReader();
 
   if (!reader) {
@@ -138,6 +143,32 @@ async function readLimited(response: Response): Promise<string> {
   return new TextDecoder("utf-8", { fatal: false }).decode(Buffer.concat(chunks).subarray(0, MAX_HTML_BYTES));
 }
 
+// Re-checks the addresses the connection actually uses, so a DNS answer that changes after
+// assertPublicHost (DNS rebinding) still can't reach a private address.
+const publicOnlyAgent = new Agent({
+  connect: {
+    lookup(hostname, options, callback) {
+      lookupCallback(hostname, { ...options, all: true }, (error, addresses: LookupAddress[]) => {
+        if (error) {
+          callback(error, "", 0);
+          return;
+        }
+
+        if (addresses.length === 0 || addresses.some(({ address }) => isPrivateAddress(address))) {
+          callback(new PreviewError("That link points to a private address."), "", 0);
+          return;
+        }
+
+        if (options.all) {
+          (callback as unknown as (err: null, list: LookupAddress[]) => void)(null, addresses);
+        } else {
+          callback(null, addresses[0].address, addresses[0].family);
+        }
+      });
+    },
+  },
+});
+
 async function fetchHtml(start: URL): Promise<{ html: string; finalUrl: URL }> {
   let url = start;
 
@@ -146,9 +177,10 @@ async function fetchHtml(start: URL): Promise<{ html: string; finalUrl: URL }> {
 
     const response = await fetch(url, {
       redirect: "manual",
+      dispatcher: publicOnlyAgent,
       signal: AbortSignal.timeout(TIMEOUT_MS),
       headers: {
-        "user-agent": "Mozilla/5.0 (compatible; VentrioBot/1.0; +https://ventrio.org)",
+        "user-agent": USER_AGENT,
         accept: "text/html,application/xhtml+xml",
         "accept-language": "en-US,en;q=0.8",
       },
@@ -228,8 +260,11 @@ function imageUrl(value: string | undefined, base: URL): string {
   }
 }
 
-export function parsePreview(html: string, pageUrl: URL): Omit<LinkPreview, "url"> {
-  const head = html.slice(0, html.search(/<\/head>/i) > 0 ? html.search(/<\/head>/i) : html.length);
+export type ParsedPreview = Omit<LinkPreview, "url"> & { thumbnailCandidates: string[]; logoCandidates: string[] };
+
+export function parsePreview(html: string, pageUrl: URL): ParsedPreview {
+  const headEnd = html.search(/<\/head>/i);
+  const head = headEnd > 0 ? html.slice(0, headEnd) : html;
   const meta: Record<string, string> = {};
 
   for (const [tag] of head.matchAll(/<meta\s[^>]*>/gi)) {
@@ -260,29 +295,138 @@ export function parsePreview(html: string, pageUrl: URL): Omit<LinkPreview, "url
 
   const title = head.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1];
   const host = pageUrl.hostname.replace(/^www\./, "");
+  const body = (headEnd > 0 ? html.slice(headEnd) : html).replace(/<!--[\s\S]*?-->/g, "");
+
+  const thumbnailCandidates = unique(
+    [
+      meta["og:image:secure_url"],
+      meta["og:image"],
+      meta["og:image:url"],
+      meta["twitter:image"],
+      meta["twitter:image:src"],
+      ...bodyImages(body),
+    ].map((value) => imageUrl(value, pageUrl)),
+  ).slice(0, MAX_IMAGE_CANDIDATES);
+
+  const logoCandidates = unique(
+    [...icons.map((icon) => icon.href), "/apple-touch-icon.png", "/favicon.ico"].map((value) => imageUrl(value, pageUrl)),
+  ).slice(0, MAX_IMAGE_CANDIDATES);
 
   return {
     title: clean(decodeEntities(meta["og:title"] || meta["twitter:title"] || title || ""), 100) || host,
     description: clean(
-      decodeEntities(meta["og:description"] || meta["twitter:description"] || meta.description || ""),
+      decodeEntities(meta["og:description"] || meta["twitter:description"] || meta.description || "") ||
+        bodyDescription(body),
       200,
     ),
     siteName: clean(meta["og:site_name"] || meta["application-name"] || "", 60) || host,
-    thumbnailUrl: imageUrl(
-      meta["og:image:secure_url"] || meta["og:image"] || meta["og:image:url"] || meta["twitter:image"] || meta["twitter:image:src"],
-      pageUrl,
-    ),
-    logoUrl: imageUrl(icons[0]?.href || "/favicon.ico", pageUrl),
+    thumbnailUrl: thumbnailCandidates[0] ?? "",
+    logoUrl: logoCandidates[0] ?? "",
+    thumbnailCandidates,
+    logoCandidates,
   };
 }
+
+function unique(values: string[]): string[] {
+  return [...new Set(values.filter(Boolean))];
+}
+
+const SKIP_IMAGE = /(^data:|\.svg(\?|$)|logo|icon|sprite|pixel|spacer|badge|avatar|emoji)/i;
+
+// Pages without Open Graph tags: use the first real photo on the page (img tags, inline
+// background images, or image paths in inline scripts such as hero slideshows).
+function bodyImages(body: string): string[] {
+  const found: string[] = [];
+
+  for (const [tag] of body.matchAll(/<img\s[^>]*>/gi)) {
+    const attrs = attributes(tag);
+    const src = attrs.src || attrs["data-src"] || attrs.srcset?.split(/\s+/)[0];
+    const small = [attrs.width, attrs.height].some((size) => size && Number(size) > 0 && Number(size) < 120);
+
+    if (src && !small && !SKIP_IMAGE.test(src)) {
+      found.push(src);
+    }
+  }
+
+  for (const match of body.matchAll(/url\(\s*['"]?([^'")$]+?\.(?:jpe?g|png|webp|gif)(?:\?[^'")]*)?)['"]?\s*\)/gi)) {
+    found.push(match[1]);
+  }
+
+  for (const match of body.matchAll(/['"]((?:https?:)?\/?[\w./-]+\.(?:jpe?g|png|webp))['"]/gi)) {
+    found.push(match[1]);
+  }
+
+  return found.filter((src) => !SKIP_IMAGE.test(src));
+}
+
+// Pages without a meta description: use the first sentence-length paragraph or heading.
+function bodyDescription(body: string): string {
+  const visible = body.replace(/<(script|style|noscript|svg|nav|header|footer)[\s>][\s\S]*?<\/\1>/gi, " ");
+
+  for (const match of visible.matchAll(/<(p|h2|h3)[^>]*>([\s\S]*?)<\/\1>/gi)) {
+    const text = clean(decodeEntities(match[2].replace(/<[^>]+>/g, " ")).replace(/\s+([,.;:!?])/g, "$1"), 400);
+
+    if (text.length >= 40 && !text.includes("{") && /[a-z]/i.test(text)) {
+      return text;
+    }
+  }
+
+  return "";
+}
+
+// Returns the first candidate that is actually an image, so cards never point at a 404
+// or at an HTML page served in place of a missing favicon.
+async function firstWorkingImage(candidates: string[]): Promise<string> {
+  for (const candidate of candidates) {
+    try {
+      let url = new URL(candidate);
+
+      for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
+        // Redirects are followed by hand so every hop (including IP literals, which skip DNS) is checked.
+        await assertPublicHost(url);
+
+        const response = await fetch(url, {
+          redirect: "manual",
+          dispatcher: publicOnlyAgent,
+          signal: AbortSignal.timeout(IMAGE_TIMEOUT_MS),
+          headers: { "user-agent": USER_AGENT, accept: "image/*" },
+        });
+        const type = response.headers.get("content-type") ?? "";
+        const location = response.headers.get("location");
+        await response.body?.cancel().catch(() => {});
+
+        if (response.status >= 300 && response.status < 400 && location) {
+          url = new URL(location, url);
+          continue;
+        }
+
+        if (response.ok && type.startsWith("image/")) {
+          return candidate;
+        }
+
+        break;
+      }
+    } catch {
+      // Try the next candidate.
+    }
+  }
+
+  return "";
+}
+
 
 // Fetches a public web page server-side and extracts its title, description, thumbnail and logo.
 // Never throws for unreadable pages: falls back to the hostname so the product can still be saved.
 export async function fetchLinkPreview(input: URL): Promise<LinkPreview & { fetched: boolean }> {
   try {
     const { html, finalUrl } = await fetchHtml(input);
+    const { thumbnailCandidates, logoCandidates, ...preview } = parsePreview(html, finalUrl);
+    const [thumbnailUrl, logoUrl] = await Promise.all([
+      firstWorkingImage(thumbnailCandidates),
+      firstWorkingImage(logoCandidates),
+    ]);
 
-    return { url: input.href, ...parsePreview(html, finalUrl), fetched: html.length > 0 };
+    return { url: input.href, ...preview, thumbnailUrl, logoUrl, fetched: html.length > 0 };
   } catch (error) {
     if (error instanceof PreviewError && error.fatal) {
       throw error;
@@ -292,6 +436,8 @@ export async function fetchLinkPreview(input: URL): Promise<LinkPreview & { fetc
       console.warn(`[products] Preview fetch failed for ${input.hostname}:`, (error as Error).message);
     }
 
-    return { url: input.href, ...parsePreview("", input), fetched: false };
+    const { title, description, siteName } = parsePreview("", input);
+
+    return { url: input.href, title, description, siteName, thumbnailUrl: "", logoUrl: "", fetched: false };
   }
 }

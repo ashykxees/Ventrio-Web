@@ -38,3 +38,27 @@ test("parsePreview reads Open Graph tags, icons and falls back to the hostname",
   assert.equal(empty.title, "shop.example.com");
   assert.equal(empty.logoUrl, "");
 });
+
+test("parsePreview falls back to page content when there are no meta tags", () => {
+  const html = `<html><head><title>Holy Smokes BBQ</title></head><body>
+    <header><a href="/"><img src="/logo.png" alt="logo"></a></header>
+    <section><h1>Holy Smokes</h1><p>Short.</p>
+    <p class="lead">Run by DC students learning <b>teamwork</b>, business, and the art of BBQ.</p></section>
+    <script>const slides = ['/assets/hero1.jpg', '/assets/hero2.jpg'];</script>
+    </body></html>`;
+  const result = parsePreview(html, new URL("https://holysmokes.cc/"));
+
+  assert.equal(result.description, "Run by DC students learning teamwork, business, and the art of BBQ.");
+  assert.equal(result.thumbnailUrl, "https://holysmokes.cc/assets/hero1.jpg");
+  assert.deepEqual(result.logoCandidates, ["https://holysmokes.cc/apple-touch-icon.png", "https://holysmokes.cc/favicon.ico"]);
+});
+
+test("parsePreview reads the body when </head> is omitted", () => {
+  const result = parsePreview(
+    `<title>Shop</title><p>Hand-made candles poured in small batches every week.</p><img src="/hero.jpg">`,
+    new URL("https://candles.example.com/"),
+  );
+
+  assert.equal(result.description, "Hand-made candles poured in small batches every week.");
+  assert.equal(result.thumbnailUrl, "https://candles.example.com/hero.jpg");
+});
