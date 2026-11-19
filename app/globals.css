@@ -206,3 +206,166 @@
     margin-top: 1rem;
   }
 }
+
+@layer components {
+  .boot-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-charcoal);
+    cursor: pointer;
+    animation: boot-out 450ms ease-in 1950ms forwards;
+  }
+
+  .booted .boot-screen {
+    display: none;
+  }
+
+  .boot-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgb(212 175 107 / 0.07) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(212 175 107 / 0.07) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: radial-gradient(circle at center, black 0%, transparent 70%);
+    animation: boot-grid 2.4s linear infinite;
+  }
+
+  .boot-scan {
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    height: 30%;
+    background: linear-gradient(to bottom, transparent, rgb(212 175 107 / 0.08), transparent);
+    animation: boot-scan 1.8s ease-in-out infinite;
+  }
+
+  .boot-mark {
+    position: relative;
+    display: flex;
+    height: 6rem;
+    width: 6rem;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .boot-mark svg {
+    filter: drop-shadow(0 0 10px rgb(212 175 107 / 0.55));
+    animation: boot-glitch 1.9s steps(1) infinite;
+  }
+
+  .boot-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    border: 1px solid rgb(212 175 107 / 0.18);
+    border-top-color: var(--color-gold);
+    border-right-color: rgb(212 175 107 / 0.5);
+    animation: spin 0.9s linear infinite;
+  }
+
+  .boot-line {
+    opacity: 0;
+    transform: translateX(-6px);
+    animation: boot-line 260ms ease-out forwards;
+  }
+
+  .boot-caret {
+    margin-left: 2px;
+    color: var(--color-gold);
+    animation: boot-blink 0.8s steps(1) infinite;
+  }
+
+  .route-bar span {
+    display: block;
+    height: 100%;
+    width: 40%;
+    background: var(--color-gold);
+    box-shadow: 0 0 8px var(--color-gold);
+    animation: route-bar 1.1s ease-in-out infinite;
+  }
+}
+
+@keyframes boot-out {
+  to {
+    opacity: 0;
+    visibility: hidden;
+    filter: blur(6px);
+  }
+}
+
+@keyframes boot-grid {
+  to {
+    background-position: 0 44px, 44px 0;
+  }
+}
+
+@keyframes boot-scan {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(340%);
+  }
+}
+
+@keyframes boot-line {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes boot-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes boot-glitch {
+  0%, 100% {
+    transform: none;
+  }
+  62% {
+    transform: translateX(2px) skewX(-6deg);
+  }
+  64% {
+    transform: translateX(-2px);
+  }
+  66% {
+    transform: none;
+  }
+}
+
+@keyframes route-bar {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boot-screen {
+    animation-duration: 200ms;
+    animation-delay: 300ms;
+  }
+
+  .boot-grid,
+  .boot-scan,
+  .boot-ring,
+  .boot-mark svg,
+  .route-bar span {
+    animation: none;
+  }
+
+  .boot-line {
+    animation-duration: 1ms;
+    animation-delay: 0ms !important;
+  }
+}
