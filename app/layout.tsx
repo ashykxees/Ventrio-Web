@@ -4,6 +4,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { TeaserFooter } from "@/components/Teaser";
 import { Logo } from "@/components/Logo";
+import { BootScreen, bootScript } from "@/components/BootScreen";
 import { getCurrentMemberSafe } from "@/lib/session";
 import { isSiteLaunched, site } from "@/lib/site";
 import { headers } from "next/headers";
@@ -60,8 +61,11 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       className={`${montserrat.variable} ${inter.variable}`}
+      suppressHydrationWarning
     >
       <body className="flex min-h-screen flex-col">
+        <script dangerouslySetInnerHTML={{ __html: bootScript }} />
+        <BootScreen />
         <a
           href="#main"
           className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[60] focus:rounded-md focus:bg-gold focus:px-4 focus:py-2 focus:text-charcoal"
